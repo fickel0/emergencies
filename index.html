@@ -15,6 +15,7 @@
         <p>
             <button type="button" id="nova">Nova ocorrência</button>
             <button type="button" id="salvarCsv">Salvar CSV</button>
+            <button type="button" id="abrirProtocolos">Protocolos de atendimento</button>
         </p>
 
         <form id="consulta" autocomplete="off">
@@ -133,11 +134,31 @@
             </form>
         </dialog>
 
+        <dialog id="janelaProtocolos">
+            <form method="dialog">
+                <p>
+                    <strong>Protocolo de atendimento:</strong>
+                    <select id="categoriaProtocolo">
+                        <option>EMS</option>
+                        <option>Fire</option>
+                        <option>Traffic</option>
+                    </select>
+                </p>
+                <svg id="grafoSvg" width="980" height="440"></svg>
+                <p>
+                    <button value="salvar">Salvar</button>
+                    <button value="cancelar">Cancelar</button>
+                </p>
+            </form>
+        </dialog>
+
         <script src="tabelaHash.js"></script>
         <script src="tst.js"></script>
         <script src="arvoreBMais.js"></script>
+        <script src="grafo.js"></script>
         <script src="ocorrencia.js"></script>
         <script src="prioridades.js"></script>
+        <script src="protocolos.js"></script>
         <script src="central.js"></script>
         <script src="pagina.js"></script>
     </body>

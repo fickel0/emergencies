@@ -269,3 +269,125 @@ function mostrar() {
 }
 
 mostrar();
+
+let selecionado = null;
+let rascunhos = null;
+
+function grafoAtual() {
+    return rascunhos.buscar(el("categoriaProtocolo").value);
+}
+
+function copiarProtocolos(origem) {
+    const copia = new TabelaHash();
+    for (const cat of origem.chaves()) {
+        const g = new Grafo(ETAPAS);
+        for (const [u, v] of origem.buscar(cat).arestas()) g.adicionarAresta(u, v);
+        copia.inserir(cat, g);
+    }
+    return copia;
+}
+
+el("abrirProtocolos").addEventListener("click", () => {
+    selecionado = null;
+    rascunhos = copiarProtocolos(protocolos);
+    mostrarProtocolo();
+    el("janelaProtocolos").returnValue = "";
+    el("janelaProtocolos").showModal();
+});
+
+el("janelaProtocolos").addEventListener("close", () => {
+    if (el("janelaProtocolos").returnValue === "salvar") {
+        for (const cat of rascunhos.chaves()) protocolos.inserir(cat, rascunhos.buscar(cat));
+    }
+});
+
+el("categoriaProtocolo").addEventListener("change", () => {
+    selecionado = null;
+    mostrarProtocolo();
+});
+
+function mostrarProtocolo() {
+    const g = grafoAtual();
+    const res = g.ordemTopologica();
+    const n = ETAPAS.length;
+    const pos = new TabelaHash();
+    ETAPAS.forEach((v, i) => {
+        const ang = (2 * Math.PI * i) / n - Math.PI / 2;
+        pos.inserir(v, { x: 490 + 170 * Math.cos(ang), y: 220 + 160 * Math.sin(ang), cos: Math.cos(ang) });
+    });
+
+    const arestas = g.arestas();
+    const linhas = [
+        `<defs>
+            <marker id="seta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#444"/></marker>
+            <marker id="setaCiclo" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#c00"/></marker>
+        </defs>`,
+    ];
+
+    arestas.forEach(([u, v], i) => {
+        const a = pos.buscar(u);
+        const b = pos.buscar(v);
+        const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+        const dx = (b.x - a.x) / dist;
+        const dy = (b.y - a.y) / dist;
+        const desvio = g.adjacencia.buscar(v).buscar(u) ? 5 : 0;
+        const nx = -dy * desvio;
+        const ny = dx * desvio;
+        const x1 = a.x + dx * 18 + nx;
+        const y1 = a.y + dy * 18 + ny;
+        const x2 = b.x - dx * 20 + nx;
+        const y2 = b.y - dy * 20 + ny;
+        const bloq = res.arestasCiclo.buscar(`${u}->${v}`) === true;
+        const cor = bloq ? "#c00" : "#444";
+        const seta = bloq ? "url(#setaCiclo)" : "url(#seta)";
+        linhas.push(
+            `<g data-aresta="${i}" style="cursor:pointer">`,
+            `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="12"/>`,
+            `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${cor}" stroke-width="2.5" marker-end="${seta}"/>`,
+            `</g>`
+        );
+    });
+
+    ETAPAS.forEach((v, i) => {
+        const { x, y, cos } = pos.buscar(v);
+        const bloq = res.noCiclo.buscar(v) === true;
+        const sel = v === selecionado;
+        const idx = res.ordem.indexOf(v);
+        const rotulo = bloq ? "!" : idx >= 0 ? idx + 1 : "";
+        const corBorda = sel ? "#06c" : bloq ? "#c00" : "#333";
+        const corFundo = sel ? "#def" : bloq ? "#fdd" : "#eee";
+        const dx = cos >= -0.01 ? 24 : -24;
+        const ancora = cos >= -0.01 ? "start" : "end";
+        linhas.push(
+            `<g data-vertice="${i}" style="cursor:pointer">`,
+            `<circle cx="${x}" cy="${y}" r="16" fill="${corFundo}" stroke="${corBorda}" stroke-width="1.5"/>`,
+            `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="12" font-weight="bold" fill="${corBorda}">${rotulo}</text>`,
+            `<text x="${x + dx}" y="${y + 4}" text-anchor="${ancora}" font-size="13" fill="${corBorda}">${v}</text>`,
+            `</g>`
+        );
+    });
+
+    const svg = el("grafoSvg");
+    svg.innerHTML = linhas.join("");
+    for (const arco of svg.querySelectorAll("[data-aresta]")) {
+        const [u, v] = arestas[arco.dataset.aresta];
+        arco.addEventListener("click", () => {
+            g.removerAresta(u, v);
+            mostrarProtocolo();
+        });
+    }
+    for (const no of svg.querySelectorAll("[data-vertice]")) {
+        const v = ETAPAS[no.dataset.vertice];
+        no.addEventListener("click", () => {
+            if (selecionado === null) {
+                selecionado = v;
+            } else if (selecionado === v) {
+                selecionado = null;
+            } else {
+                g.adicionarAresta(selecionado, v);
+                selecionado = null;
+            }
+            mostrarProtocolo();
+        });
+    }
+}

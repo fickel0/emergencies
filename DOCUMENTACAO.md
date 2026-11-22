@@ -1,6 +1,6 @@
 # Central de Emergências: Operação Resgate
 
-Sistema web CRUD de ocorrências de emergência (chamadas do 911). As três estruturas centrais (árvore B+, Trie e tabela hash) foram feitas do zero em JavaScript.
+Sistema web CRUD de ocorrências de emergência (chamadas do 911). As estruturas centrais (árvore B+, Trie, tabela hash e grafo direcionado) foram feitas do zero em JavaScript.
 
 ## Como executar
 
@@ -48,7 +48,8 @@ Tipo e região perderam as maiúsculas do original. O endereço continua em mai�
 |---|---|---|
 | Árvore B+ | `arvoreBMais.js` | `ocorrencias` (id → ocorrência): consulta por id, período, listagem em ordem de data, Salvar CSV |
 | Trie (TST) | `tst.js` | `palavras` (palavra do endereço → ocorrências): busca por prefixo e sugestões |
-| Tabela hash | `tabelaHash.js` | índices de tipo e região, pendentes, prioridades, integridade e todo conjunto de ocorrências |
+| Tabela hash | `tabelaHash.js` | índices de tipo e região, pendentes, prioridades, integridade, lista de adjacência do grafo e todo conjunto de ocorrências |
+| Grafo direcionado | `grafo.js` | `protocolos` (categoria → grafo de etapas): dependências operacionais, detecção de ciclos e ordenação topológica |
 
 ### Árvore B+
 
@@ -66,6 +67,16 @@ Escolhemos a TST pela simplicidade. É mais eficiente que a R-way e na Patricia 
 ### Tabela hash
 
 Hash polinomial base 31 (método de Horner, módulo 2^32), com encadeamento. A capacidade dobra quando a carga passa de 0,75. O código não usa `Set` nem `Map` do JavaScript, usa somente nossa tabela.
+
+### Grafo direcionado
+
+Cada categoria (`EMS`, `Fire` e `Traffic`) tem seu protocolo de atendimento em `protocolos.js`: um `Grafo` (`grafo.js`) com as mesmas 7 etapas operacionais e as dependências de cada operação. Cada vértice é uma etapa e cada aresta `u → v` diz que `u` precisa terminar antes de `v` começar. A lista de adjacência usa a própria `TabelaHash`, onde cada etapa aponta para o conjunto (`TabelaHash`) das etapas que dependem dela.
+
+A consulta da ordem de execução e a detecção de ciclos rodam juntas numa busca em profundidade (DFS) com regra das 3 cores e pilha de resultado, em $O(V + E)$:
+
+- Ao entrar na pilha de recursão, a etapa fica cinza (`1`); ao terminar todas as dependentes, fica preta (`2`) e vai para a pilha de resultado.
+- Se a busca encontra uma aresta para uma etapa cinza, o trecho aberto na pilha de recursão fecha um ciclo. Só as etapas e setas desse ciclo ficam vermelhas na tela.
+- Sem ciclo, o grafo é um DAG, e a pilha de resultado invertida numera as etapas conectadas na ordem em que podem ser executadas (`1, 2, ...`).
 
 ## Como funciona
 
@@ -87,9 +98,10 @@ Hash polinomial base 31 (método de Horner, módulo 2^32), com encadeamento. A c
 
 | Arquivo | Conteúdo |
 |---|---|
-| `tabelaHash.js`, `tst.js`, `arvoreBMais.js` | as estruturas |
+| `tabelaHash.js`, `tst.js`, `arvoreBMais.js`, `grafo.js` | as estruturas |
 | `ocorrencia.js` | id e hash de integridade |
 | `prioridades.js` | tabela tipo → nível |
+| `protocolos.js` | grafos de dependências operacionais por categoria |
 | `central.js` | o sistema: índices, carga, integridade, busca e edição (sem nada de tela) |
 | `pagina.js`, `index.html` | a tela |
 | `preparar_dados.py`, `dados.csv` | o script dos dados e o CSV gerado |
