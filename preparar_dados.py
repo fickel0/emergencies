@@ -13,6 +13,7 @@ import hashlib
 import math
 import random
 import re
+import statistics
 import sys
 import time
 
@@ -92,6 +93,7 @@ def main():
 
     ocorrencias = []
     sufixos = {}  # segundo -> quantos chamados já caíram nele
+    lats, lngs = {}, {}
     for l in linhas:
         original = segundos_utc(l["timeStamp"])
         segundos = original + deslocamento
@@ -104,19 +106,37 @@ def main():
         pendente = idade <= 48 and random.random() < math.exp(-idade / 12)
 
         categoria, tipo = dividir_title(l["title"])
+        regiao = l["twp"].strip().title()
+        # posição da região: acumula lat e lng dentro dos limites do condado pra tirar a mediana no fim
+        if regiao:
+            la, ln = float(l["lat"]), float(l["lng"])
+            if 39.9 < la < 40.5 and -75.8 < ln < -75.0:
+                lats.setdefault(regiao, []).append(la)
+                lngs.setdefault(regiao, []).append(ln)
+
         o = {
             "id": criar_id(segundos, sufixo),
             "categoria": categoria,
             "tipo": arrumar_tipo(tipo),
             "zip": l["zip"].strip(),
-            "regiao": l["twp"].strip().title(),
+            "regiao": regiao,
             "endereco": l["addr"].strip(),
             "atendido": 0 if pendente else 1,
         }
         o["hash"] = hash_da_ocorrencia(o)
         ocorrencias.append(o)
 
+    # a primeira linha do CSV (#regiao:lat:lng;...) guarda o centro de cada região pro mapa logístico.
+    # regiões a menos de 3,2 km de outra já incluída ficam de fora do mapa pra não encavalar os nomes
+    centros = []
+    for r in sorted(lats, key=lambda r: -len(lats[r])):
+        la, ln = statistics.median(lats[r]), statistics.median(lngs[r])
+        if all(math.hypot((la - a) * 111, (ln - b) * 85) >= 3.2 for _, a, b in centros):
+            centros.append((r, la, ln))
+    cidades = [f"{r}:{la:.4f}:{ln:.4f}" for r, la, ln in sorted(centros)]
+
     with open(saida, "w", newline="", encoding="utf-8") as f:
+        f.write("#" + ";".join(cidades) + "\n")
         w = csv.DictWriter(f, fieldnames=COLUNAS, lineterminator="\n")
         w.writeheader()
         for o in ocorrencias:

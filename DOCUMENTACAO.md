@@ -26,8 +26,9 @@ São usadas as 10.000 chamadas válidas mais recentes.
 | `addr` | `endereco` |
 | `zip` | `zip` |
 | `timeStamp` | dentro do `id` |
+| `lat`, `lng` | mediana por `regiao` no cabeçalho `#regiao:lat:lng;...` da 1ª linha do `dados.csv` |
 
-Ficaram de fora `lat`, `lng`, `e` e `desc` (que só repete endereço e região).
+Ficaram de fora `e` e `desc` (que só repete endereço e região).
 
 **Campos derivados ou acrescentados:**
 
@@ -44,12 +45,13 @@ Tipo e região perderam as maiúsculas do original. O endereço continua em mai�
 
 ## Estruturas
 
-| Estrutura | Arquivo | Onde é usada |
-|---|---|---|
-| Árvore B+ | `arvoreBMais.js` | `ocorrencias` (id → ocorrência): consulta por id, período, listagem em ordem de data, Salvar CSV |
-| Trie (TST) | `tst.js` | `palavras` (palavra do endereço → ocorrências): busca por prefixo e sugestões |
-| Tabela hash | `tabelaHash.js` | índices de tipo e região, pendentes, prioridades, integridade, lista de adjacência do grafo e todo conjunto de ocorrências |
-| Grafo direcionado | `grafo.js` | `protocolos` (categoria → grafo de etapas): dependências operacionais, detecção de ciclos e ordenação topológica |
+| Estrutura | Arquivo | Dimensões com `dados.csv` | Onde é usada |
+|---|---|---|---|
+| Árvore B+ | `arvoreBMais.js` | 9.996 ocorrências (M = 5, L = 64) | `ocorrencias` (id → ocorrência): consulta por id, período, listagem em ordem de data, Salvar CSV |
+| Trie (TST) | `tst.js` | 1.916 palavras indexadas | `palavras` (palavra do endereço → ocorrências): busca por prefixo e sugestões |
+| Tabela hash | `tabelaHash.js` | 64 tipos, 68 regiões, 153 pendentes | índices de tipo e região, pendentes, prioridades, integridade, adjacência dos grafos e conjuntos |
+| Grafo direcionado | `grafo.js` | 3 protocolos × 7 etapas (6 a 7 arestas) | `protocolos` (categoria → grafo de etapas): dependências operacionais, ciclos e ordem topológica |
+| Grafo ponderado (rede) | `rede.js` | 48 vértices (regiões) e 89 arestas | `rede`: malha logística do condado, caminho mínimo (Dijkstra) e árvore geradora mínima (Kruskal) |
 
 ### Árvore B+
 
@@ -78,6 +80,15 @@ A consulta da ordem de execução e a detecção de ciclos rodam juntas numa bus
 - Se a busca encontra uma aresta para uma etapa cinza, o trecho aberto na pilha de recursão fecha um ciclo. Só as etapas e setas desse ciclo ficam vermelhas na tela.
 - Sem ciclo, o grafo é um DAG, e a pilha de resultado invertida numera as etapas conectadas na ordem em que podem ser executadas (`1, 2, ...`).
 
+### Rede logística (caminhos mínimos e árvore geradora mínima)
+
+O `preparar_dados.py` calcula a mediana de latitude e longitude das chamadas de cada região (mantendo as regiões separadas por pelo menos 3,2 km para os nomes não se sobreporem no mapa) e grava na primeira linha do `dados.csv` (`#Abington:40.1129:-75.1208;...`). Ao carregar o CSV, a `Rede` (`rede.js`) monta um grafo não direcionado e ponderado com **48 regiões (vértices)** e conecta cada região às suas 3 vizinhas mais próximas, gerando **89 conexões (arestas)** cujo peso é a distância em quilômetros entre os centros das regiões.
+
+Foram implementadas duas técnicas complementares sobre essa mesma rede:
+
+- **Caminho mínimo (Algoritmo de Dijkstra):** otimiza o deslocamento local entre duas regiões específicas (origem e destino clicadas no mapa). A partir da origem com distância 0, o algoritmo usa um min-heap binário para extrair a menor distância acumulada e relaxa iterativamente suas arestas (`dist[u] + peso(u, v) < dist[v]`) em $O((V + E) \log V)$, guardando o predecessor em `ant` para reconstruir a rota mais curta e a quilometragem total.
+- **Árvore geradora mínima (Algoritmo de Kruskal com Union-Find):** otimiza a infraestrutura global, conectando todas as 48 regiões com a menor extensão total de malha e sem ciclos. Como a rede viária é esparsa (89 arestas para 48 vértices), o algoritmo de Kruskal ordena as arestas pelo peso e une componentes distintas usando uma estrutura de conjuntos disjuntos (**Union-Find**) com **compressão de caminho** no `find`, selecionando $V - 1 = 47$ conexões em tempo $O(E \log V)$.
+
 ## Como funciona
 
 - **Gerenciamento:** carregar, cadastrar, editar, remover e salvar o CSV.
@@ -98,11 +109,22 @@ A consulta da ordem de execução e a detecção de ciclos rodam juntas numa bus
 
   Com o `dados.csv`: 4 incompletas, 0 alteradas, 5 duplicadas (pares idênticos no mesmo segundo) e 0 conflitos.
 
+## Testes dos algoritmos
+
+- **Ordem topológica e ciclos (`grafo.js`):**
+  - *Sem ciclo (DAG):* abrir **Protocolos de atendimento** em `EMS`, `Fire` ou `Traffic` exibe as etapas numeradas na ordem topológica válida (`1` a `7` em `EMS`/`Fire`, `1` a `6` em `Traffic`).
+  - *Com ciclo:* em `Fire`, clicar na etapa `5` (*Encaminhar ocorrência para atendimento*) e na etapa `4` (*Isolar área e prestar atendimento*) cria a dependência reversa `5 → 4`, fechando um ciclo com `4 → 5`. A DFS de 3 cores detecta o retorno ao vértice cinza e destaca apenas as duas etapas e suas setas em vermelho (`!`). Clicar na seta vermelha remove a dependência e restaura a numeração.
+- **Planejamento de viaturas (`otimizarViaturas` em `central.js`):**
+  - Com o `dados.csv` carregado (153 pendentes) e **21 viaturas disponíveis**, a programação dinâmica seleciona 11 ocorrências que usam 21/21 viaturas e atingem prioridade total **44**: as 2 paradas cardíacas de nível 5 (2 viaturas cada), 8 emergências de nível 4 (2 viaturas cada) e 1 chamado de nível 2 (1 viatura) para aproveitar a viatura restante.
+- **Caminho mínimo e AGM (`rede.js`):**
+  - *Árvore geradora mínima (Kruskal):* abrir **Rede logística** (com `dados.csv` carregado) e marcar **árvore geradora mínima** seleciona **47 conexões** das 89 disponíveis, interligando todas as 48 regiões com **211,9 km** totais.
+  - *Caminho mínimo (Dijkstra):* no modo **caminho mínimo**, clicar em `Pottstown` (noroeste) e em `Abington` (leste) encontra a rota mínima `Pottstown → Lower Pottsgrove → Limerick → Perkiomen → Skippack → Worcester → North Wales → Lower Gwynedd → Ambler → Upper Dublin → Upper Moreland → Abington` com **54,9 km**.
+
 ## Arquivos
 
 | Arquivo | Conteúdo |
 |---|---|
-| `tabelaHash.js`, `tst.js`, `arvoreBMais.js`, `grafo.js` | as estruturas |
+| `tabelaHash.js`, `tst.js`, `arvoreBMais.js`, `grafo.js`, `rede.js` | as estruturas e algoritmos de grafos |
 | `ocorrencia.js` | id e hash de integridade |
 | `prioridades.js` | tabelas tipo → nível e tipo → viaturas |
 | `protocolos.js` | grafos de dependências operacionais por categoria |

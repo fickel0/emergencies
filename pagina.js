@@ -309,6 +309,7 @@ function copiarProtocolos(origem) {
 
 el("abrirProtocolos").addEventListener("click", () => {
     selecionado = null;
+    el("categoriaProtocolo").value = "EMS";
     rascunhos = copiarProtocolos(protocolos);
     mostrarProtocolo();
     el("janelaProtocolos").returnValue = "";
@@ -408,6 +409,102 @@ function mostrarProtocolo() {
                 selecionado = null;
             }
             mostrarProtocolo();
+        });
+    }
+}
+
+let origemRede = null;
+let destinoRede = null;
+
+el("abrirRede").addEventListener("click", () => {
+    origemRede = null;
+    destinoRede = null;
+    document.querySelector("[name=modoRede][value=caminho]").checked = true;
+    mostrarRede();
+    el("janelaRede").showModal();
+});
+
+for (const radio of document.querySelectorAll("[name=modoRede]")) {
+    radio.addEventListener("change", mostrarRede);
+}
+
+function mostrarRede() {
+    const svg = el("redeSvg");
+    const nomes = rede.cidades.chaves();
+    el("kmCaminho").textContent = "";
+    el("kmAgm").textContent = "";
+    if (nomes.length === 0) {
+        svg.innerHTML = "";
+        return;
+    }
+
+    const modo = document.querySelector("[name=modoRede]:checked").value;
+    let arestasDestaque = new TabelaHash();
+    let nosDestaque = new TabelaHash();
+
+    if (modo === "agm") {
+        const agm = rede.arvoreGeradoraMinima();
+        arestasDestaque = agm.arestas;
+        el("kmAgm").textContent = `(${agm.km} km)`;
+    } else if (origemRede && destinoRede) {
+        const rota = rede.caminhoMinimo(origemRede, destinoRede);
+        arestasDestaque = rota.arestas;
+        for (const c of rota.caminho) nosDestaque.inserir(c, true);
+        el("kmCaminho").textContent = `(${rota.km} km)`;
+    } else if (origemRede) {
+        nosDestaque.inserir(origemRede, true);
+    }
+
+    const todos = rede.cidades.valores().concat(CONTORNO_CONDADO.map(([lat, lng]) => ({ lat, lng })));
+    const minLat = Math.min(...todos.map((c) => c.lat)), maxLat = Math.max(...todos.map((c) => c.lat));
+    const minLng = Math.min(...todos.map((c) => c.lng)), maxLng = Math.max(...todos.map((c) => c.lng));
+    const pos = (c) => ({
+        x: 70 + ((c.lng - minLng) / (maxLng - minLng || 1)) * 820,
+        y: 515 - ((c.lat - minLat) / (maxLat - minLat || 1)) * 490,
+    });
+
+    const pontosMapa = CONTORNO_CONDADO.map(([lat, lng]) => {
+        const p = pos({ lat, lng });
+        return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    }).join(" ");
+    const linhas = [`<polygon points="${pontosMapa}" fill="#f8f8f5" stroke="#bbb" stroke-width="1.5"/>`];
+    for (const a of rede.listaArestas) {
+        const p1 = pos(rede.cidades.buscar(a.u));
+        const p2 = pos(rede.cidades.buscar(a.v));
+        const ativa = arestasDestaque.buscar(`${a.u}|${a.v}`) === true;
+        const cor = ativa ? "#06c" : "#ccc";
+        const larg = ativa ? 2.5 : 1;
+        linhas.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${larg}"/>`);
+    }
+
+    nomes.forEach((nome, i) => {
+        const p = pos(rede.cidades.buscar(nome));
+        const ativo = nosDestaque.buscar(nome) === true;
+        const corBorda = ativo ? "#06c" : "#333";
+        const corFundo = ativo ? "#def" : "#eee";
+        const esq = p.x > 820;
+        linhas.push(
+            `<g data-cidade="${i}" style="cursor:pointer">`,
+            `<circle cx="${p.x}" cy="${p.y}" r="${ativo ? 6 : 4.5}" fill="${corFundo}" stroke="${corBorda}" stroke-width="1.5"/>`,
+            `<text x="${p.x + (esq ? -8 : 8)}" y="${p.y + 3}" text-anchor="${esq ? "end" : "start"}" font-size="11" font-weight="${ativo ? "bold" : "normal"}" fill="${corBorda}">${nome}</text>`,
+            `</g>`
+        );
+    });
+
+    svg.innerHTML = linhas.join("");
+    for (const no of svg.querySelectorAll("[data-cidade]")) {
+        const nome = nomes[no.dataset.cidade];
+        no.addEventListener("click", () => {
+            if (modo !== "caminho") return;
+            if (!origemRede || destinoRede) {
+                origemRede = nome;
+                destinoRede = null;
+            } else if (origemRede === nome) {
+                origemRede = null;
+            } else {
+                destinoRede = nome;
+            }
+            mostrarRede();
         });
     }
 }

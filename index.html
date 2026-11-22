@@ -16,6 +16,7 @@
             <button type="button" id="nova">Nova ocorrência</button>
             <button type="button" id="salvarCsv">Salvar CSV</button>
             <button type="button" id="abrirProtocolos">Protocolos de atendimento</button>
+            <button type="button" id="abrirRede">Rede logística</button>
         </p>
 
         <form id="consulta" autocomplete="off">
@@ -159,10 +160,23 @@
             </form>
         </dialog>
 
+        <dialog id="janelaRede">
+            <form method="dialog">
+                <p>
+                    <strong>Rede logística:</strong>
+                    <label><input type="radio" name="modoRede" value="caminho" checked /> caminho mínimo <span id="kmCaminho"></span></label>
+                    <label><input type="radio" name="modoRede" value="agm" /> árvore geradora mínima <span id="kmAgm"></span></label>
+                </p>
+                <svg id="redeSvg" width="980" height="540"></svg>
+                <p><button>Fechar</button></p>
+            </form>
+        </dialog>
+
         <script src="tabelaHash.js"></script>
         <script src="tst.js"></script>
         <script src="arvoreBMais.js"></script>
         <script src="grafo.js"></script>
+        <script src="rede.js"></script>
         <script src="ocorrencia.js"></script>
         <script src="prioridades.js"></script>
         <script src="protocolos.js"></script>

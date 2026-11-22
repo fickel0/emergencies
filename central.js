@@ -67,6 +67,8 @@ function chavesUsadas(indice) {
 // nenhum campo tem vírgula (a edição troca por espaço), então o split basta
 function lerCsv(texto) {
     const linhas = texto.split(/\r?\n/).filter((linha) => linha !== "");
+    if (linhas[0]?.startsWith("#")) rede.carregar(linhas.shift());
+    else rede.carregar("");
     const cabecalho = linhas[0].split(",");
     const objetos = [];
     for (const linha of linhas.slice(1)) {
@@ -96,7 +98,7 @@ async function carregarCsv(texto) {
     // sufixo do id, então duas ocorrências iguais no mesmo segundo caem na mesma chave
     const vistos = new TabelaHash();
 
-    let numero = 1; // número da linha no arquivo (a 1 é o cabeçalho)
+    let numero = rede.cabecalho ? 2 : 1; // número da linha no arquivo (com o cabeçalho)
     for (const linha of lerCsv(texto)) {
         numero++;
         const id = textoParaId(linha.id);
@@ -141,7 +143,7 @@ function camposValidos(o) {
 
 // o CSV pra salvar: o mesmo formato do preparar_dados.py, em ordem de id
 function gerarCsv() {
-    const linhas = [COLUNAS.join(",")];
+    const linhas = rede.cabecalho ? [rede.cabecalho, COLUNAS.join(",")] : [COLUNAS.join(",")];
     for (const o of ocorrencias.intervalo(0, Number.MAX_SAFE_INTEGER)) {
         linhas.push(COLUNAS.map((coluna) => (coluna === "id" ? idParaTexto(o.id) : o[coluna])).join(","));
     }
