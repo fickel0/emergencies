@@ -291,3 +291,29 @@ function idDeAgora() {
     while (ocorrencias.buscar(criarId(segundos, sufixo)) !== undefined) sufixo++;
     return criarId(segundos, sufixo);
 }
+
+// mochila 0/1 bottom-up: maximiza a soma de níveis de prioridade dentro do limite de viaturas
+function otimizarViaturas(lista, limite) {
+    const n = lista.length;
+    const dp = Array.from({ length: n + 1 }, () => new Int32Array(limite + 1));
+
+    for (let i = 1; i <= n; i++) {
+        const peso = viaturasDe(lista[i - 1]);
+        const valor = nivelDe(lista[i - 1]);
+        for (let j = 0; j <= limite; j++) {
+            const deixa = dp[i - 1][j];
+            dp[i][j] = peso <= j ? Math.max(deixa, valor + dp[i - 1][j - peso]) : deixa;
+        }
+    }
+
+    const selecionadas = new TabelaHash();
+    let j = limite;
+    for (let i = n; i >= 1; i--) {
+        if (dp[i][j] !== dp[i - 1][j]) {
+            selecionadas.inserir(lista[i - 1].id, true);
+            j -= viaturasDe(lista[i - 1]);
+        }
+    }
+
+    return { selecionadas, usadas: limite - j, prioridadeTotal: dp[n][limite] };
+}

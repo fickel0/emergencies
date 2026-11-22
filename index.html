@@ -70,6 +70,12 @@
                 <label><input type="radio" name="ordem" value="prioridade" checked /> prioridade</label>
             </fieldset>
 
+            <fieldset>
+                <legend>Planejamento de atendimento</legend>
+                Viaturas disponíveis: <input type="number" id="viaturas" min="1" max="500" style="width: 5em" />
+                <span id="resumoViaturas"></span>
+            </fieldset>
+
             <p>
                 <button type="button" id="limpar">Limpar</button>
             </p>
@@ -85,6 +91,7 @@
                     <th>Categoria</th>
                     <th>Tipo</th>
                     <th>Nível</th>
+                    <th>Viaturas</th>
                     <th>Região</th>
                     <th>Endereço</th>
                     <th>Situação</th>

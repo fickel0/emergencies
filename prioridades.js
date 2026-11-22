@@ -93,3 +93,68 @@ function nivelDe(o) {
     if (nivel === undefined) return 3;
     return nivel;
 }
+
+const viaturas = new TabelaHash();
+
+function definirViaturas(quantas, tipos) {
+    for (const tipo of tipos) viaturas.inserir(tipo, quantas);
+}
+
+definirViaturas(4, [
+    "Building fire",
+    "Hazardous materials incident",
+    "Woods/field fire",
+]);
+
+definirViaturas(3, [
+    "Shooting",
+    "Drowning",
+    "Rescue",
+    "Vehicle fire",
+    "Unknown type fire",
+    "Electrical fire outside",
+    "Gas-odor/leak",
+    "Vehicle accident",
+    "Elevator emergency",
+]);
+
+definirViaturas(2, [
+    "Cardiac arrest",
+    "Unresponsive subject",
+    "Unconscious subject",
+    "Choking",
+    "Electrocution",
+    "CVA/stroke",
+    "Overdose",
+    "Respiratory emergency",
+    "Cardiac emergency",
+    "Hemorrhaging",
+    "Allergic reaction",
+    "Diabetic emergency",
+    "Altered mental status",
+    "Carbon monoxide detector",
+    "Assault victim",
+    "Burn victim",
+    "Head injury",
+    "Poisoning",
+    "Maternity",
+    "Heat exhaustion",
+    "Appliance fire",
+    "Trash/dumpster fire",
+    "Vehicle leaking fuel",
+    "Hazardous road conditions",
+    "Fall victim",
+    "Seizures",
+    "Syncopal episode",
+    "Unknown medical emergency",
+    "Fracture",
+    "Lacerations",
+    "Abdominal pains",
+    "Medical alert alarm",
+]);
+
+// os demais tipos usam 1 viatura
+function viaturasDe(o) {
+    const v = viaturas.buscar(o.tipo);
+    return v === undefined ? 1 : v;
+}

@@ -3,6 +3,7 @@
 const POR_PAGINA = 50;
 
 let resultado = [];
+let simulacao = null;
 let pagina = 0;
 
 // atalho pra pegar um elemento pelo id
@@ -228,7 +229,21 @@ el("janela").addEventListener("close", async () => {
 // 10 mil linhas de uma vez
 
 function mostrarResultado(lista) {
-    resultado = lista;
+    const limite = Math.min(500, Math.floor(Number(el("viaturas").value)));
+    if (limite > 0 && lista.length > 0) {
+        const sim = otimizarViaturas(lista, limite);
+        const dentro = lista.filter((o) => sim.selecionadas.buscar(o.id) === true);
+        const fora = lista.filter((o) => sim.selecionadas.buscar(o.id) === undefined);
+        resultado = dentro.concat(fora);
+        simulacao = sim.selecionadas;
+        el("resumoViaturas").textContent =
+            `${dentro.length} selecionadas e ${fora.length} de fora ` +
+            `(${sim.usadas}/${limite} viaturas empenhadas, prioridade total ${sim.prioridadeTotal})`;
+    } else {
+        resultado = lista;
+        simulacao = null;
+        el("resumoViaturas").textContent = "";
+    }
     el("contagem").textContent = `${resultado.length} ocorrências`;
     pagina = 0;
     mostrar();
@@ -253,9 +268,14 @@ function mostrar() {
     tabela.replaceChildren();
     for (const o of resultado.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA)) {
         const data = dataNaTela(o.id);
-        const situacao = o.atendido ? "atendida" : "pendente";
+        let situacao = o.atendido ? "atendida" : "pendente";
         const tr = tabela.insertRow();
-        const valores = [idParaTexto(o.id), data, o.categoria, o.tipo, nivelDe(o), o.regiao, o.endereco, situacao];
+        if (simulacao !== null) {
+            const entrou = simulacao.buscar(o.id) === true;
+            situacao = entrou ? "selecionada" : "de fora";
+            if (!entrou) tr.style.opacity = "0.45";
+        }
+        const valores = [idParaTexto(o.id), data, o.categoria, o.tipo, nivelDe(o), viaturasDe(o), o.regiao, o.endereco, situacao];
         for (const valor of valores) tr.insertCell().textContent = valor;
         const editar = document.createElement("button");
         editar.textContent = "editar";

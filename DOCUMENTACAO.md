@@ -34,7 +34,7 @@ Ficaram de fora `lat`, `lng`, `e` e `desc` (que só repete endereço e região).
 - **`id`:** segundos desde 1970 × 256 + um sufixo para chamadas no mesmo segundo. Na tela, ele aparece em base 36: `TMI7LR`, `TMI7LR-1`. Ordenar por id é ordenar por data.
 - **`atendido`:** sorteado com semente fixa. Só as chamadas das últimas 48 h podem estar pendentes, com chance e^(−idade/12), o que dá 153 pendentes.
 - **`hash`:** o hash de integridade de cada linha.
-- **Nível de prioridade (1 a 5):** sai do tipo, por uma tabela própria (`prioridades.js`) que cobre os 64 tipos da base. Ex.: Cardiac arrest = 5, Fall victim = 3, Disabled vehicle = 1.
+- **Nível de prioridade (1 a 5) e viaturas necessárias (1 a 4):** saem do tipo da ocorrência, por tabelas próprias em `prioridades.js` que cobrem os 64 tipos da base. Ex.: Building fire = nível 5 e 4 viaturas; Cardiac arrest = nível 5 e 2 viaturas; Fall victim = nível 3 e 1 viatura.
 
 **Adaptações:**
 
@@ -86,6 +86,10 @@ A consulta da ordem de execução e a detecção de ciclos rodam juntas numa bus
   2. **filtro:** cada candidata é conferida contra todos os campos;
   3. **ordem:** recentes, antigos ou prioridade.
 - **Prioridade:** do nível 5 ao 1 e, no empate, a mais antiga primeiro. A tela abre em "só pendentes, por prioridade", que é a fila de atendimento.
+- **Planejamento de atendimento (Mochila 0/1 com programação dinâmica):** quando o operador informa o número de viaturas disponíveis, o sistema resolve a mochila 0/1 (`otimizarViaturas` em `central.js`) sobre as ocorrências filtradas na tela.
+  - **Modelagem:** a capacidade $W$ é o total de viaturas disponíveis; cada ocorrência $i$ tem custo $p_i \in \{1..4\}$ (viaturas exigidas pelo tipo) e benefício $v_i \in \{1..5\}$ (nível de prioridade). Uma escolha gulosa só pela maior prioridade pode deixar viaturas paradas ou gastar 4 viaturas num único chamado (`Building fire`, prioridade 5) quando o mesmo recurso atenderia duas paradas cardíacas (`Cardiac arrest`, 2 viaturas e prioridade 5 cada, somando 10).
+  - **Estado, casos base e transição:** usamos programação dinâmica bottom-up em matriz densa `dp[n + 1][W + 1]`, já que todas as capacidades de `0` a `W` são visitadas e o preenchimento iterativo evita recursão profunda sobre centenas de chamados. O estado `dp[i][j]` guarda a maior soma de prioridades possível entre as primeiras `i` ocorrências com até `j` viaturas. Os casos base são `dp[0][j] = 0` e `dp[i][0] = 0`. Para cada ocorrência `i` e capacidade `j`, a decisão escolhe o máximo entre deixar a ocorrência de fora (`dp[i - 1][j]`) ou, se $p_i \le j$, atendê-la (`v_i + dp[i - 1][j - p_i]`), em tempo e espaço $O(n \cdot W)$.
+  - **Reconstrução:** voltando de `dp[n][W]` até `i = 1`, sempre que `dp[i][j] !== dp[i - 1][j]`, a ocorrência `i` entrou na solução ótima e descontamos $p_i$ de `j`. As ocorrências selecionadas vão para o topo da tabela, as que ficaram de fora aparecem abaixo com opacidade reduzida e o resumo mostra as viaturas empenhadas e a prioridade total atingida.
 - **Integridade:** cada ocorrência vira um texto, `categoria|tipo|data_hora|zip|regiao|endereco|atendido`, e o SHA-256 dele vai na coluna `hash`. O SHA-256 vem pronto (`crypto.subtle` no navegador, `hashlib` no Python).
   - **incompleta:** campo vazio ou inválido.
   - **alterada:** o hash do arquivo não bate com o recalculado, ou seja, alguém mexeu fora do sistema.
@@ -100,7 +104,7 @@ A consulta da ordem de execução e a detecção de ciclos rodam juntas numa bus
 |---|---|
 | `tabelaHash.js`, `tst.js`, `arvoreBMais.js`, `grafo.js` | as estruturas |
 | `ocorrencia.js` | id e hash de integridade |
-| `prioridades.js` | tabela tipo → nível |
+| `prioridades.js` | tabelas tipo → nível e tipo → viaturas |
 | `protocolos.js` | grafos de dependências operacionais por categoria |
 | `central.js` | o sistema: índices, carga, integridade, busca e edição (sem nada de tela) |
 | `pagina.js`, `index.html` | a tela |
