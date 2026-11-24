@@ -1,9 +1,10 @@
+function chaveAresta(a, b) {
+    return a < b ? `${a}|${b}` : `${b}|${a}`;
+}
+
 class Rede {
     constructor() {
-        this.cidades = new TabelaHash();
-        this.adjacencia = new TabelaHash();
-        this.listaArestas = [];
-        this.cabecalho = "";
+        this.carregar("");
     }
 
     carregar(cabecalho) {
@@ -38,16 +39,16 @@ class Rede {
             for (const { b, km } of vizinhos) {
                 this.adjacencia.buscar(a).inserir(b, km);
                 this.adjacencia.buscar(b).inserir(a, km);
-                const par = a < b ? `${a}|${b}` : `${b}|${a}`;
+                const par = chaveAresta(a, b);
                 if (vistas.buscar(par) === undefined) {
                     vistas.inserir(par, true);
                     this.listaArestas.push({ u: a < b ? a : b, v: a < b ? b : a, km });
                 }
             }
         }
+        this.agm = this.arvoreGeradoraMinima();
     }
 
-    // algoritmo de Dijkstra
     caminhoMinimo(origem, destino) {
         const dist = new TabelaHash();
         const ant = new TabelaHash();
@@ -96,14 +97,13 @@ class Rede {
             for (let atual = destino; atual !== undefined; atual = ant.buscar(atual)) {
                 caminho.push(atual);
                 const p = ant.buscar(atual);
-                if (p !== undefined) arestas.inserir(atual < p ? `${atual}|${p}` : `${p}|${atual}`, true);
+                if (p !== undefined) arestas.inserir(chaveAresta(atual, p), true);
             }
             caminho.reverse();
         }
         return { caminho, arestas, km: Math.round(dist.buscar(destino) * 10) / 10 };
     }
 
-    // algoritmo de Kruskal com Union-Find e compressão de caminho
     arvoreGeradoraMinima() {
         const pai = new TabelaHash();
         for (const v of this.cidades.chaves()) pai.inserir(v, v);
@@ -118,7 +118,6 @@ class Rede {
         const ordenadas = this.listaArestas.slice().sort((a, b) => a.km - b.km);
         const arestas = new TabelaHash();
         let total = 0;
-        let quantas = 0;
 
         for (const a of ordenadas) {
             const ru = find(a.u);
@@ -127,10 +126,9 @@ class Rede {
                 pai.inserir(ru, rv);
                 arestas.inserir(`${a.u}|${a.v}`, true);
                 total += a.km;
-                quantas++;
             }
         }
-        return { arestas, quantas, km: Math.round(total * 10) / 10 };
+        return { arestas, km: Math.round(total * 10) / 10 };
     }
 }
 

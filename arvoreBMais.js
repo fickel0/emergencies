@@ -54,8 +54,6 @@ class ArvoreBMais {
         this.tamanho = 0;
     }
 
-    // o pool
-
     // cria o buffer e as duas "visões" dele: uma pra ler as chaves (8 B cada) e
     // outra pra ler filhos e quantidade (4 B cada). se tiver um buffer antigo, copia
     criarPool(antigo) {
@@ -68,7 +66,6 @@ class ArvoreBMais {
     novoInterno() {
         if (this.livres.length > 0) return this.livres.pop();
         if (this.usados === this.capacidade) {
-            // lotou: dobra o pool
             this.capacidade *= 2;
             this.criarPool(this.pool);
         }
@@ -116,8 +113,6 @@ class ArvoreBMais {
         for (let i = 0; i < filhos.length; i++) this.pool32[no * 16 + 8 + i] = filhos[i];
     }
 
-    // busca
-
     // em qual filho o id está: no filho i ficam os ids com chaves[i - 1] <= id < chaves[i]
     qualFilho(no, id) {
         let i = 0;
@@ -125,7 +120,6 @@ class ArvoreBMais {
         return i;
     }
 
-    // desce da raiz até a folha onde o id está (ou estaria)
     acharFolha(id) {
         let no = this.raiz;
         for (let nivel = 0; nivel < this.altura; nivel++) {
@@ -140,8 +134,6 @@ class ArvoreBMais {
         if (i === -1) return undefined;
         return folha.ocorrencias[i];
     }
-
-    // intervalos: desce uma vez só e depois anda pelas folhas vizinhas
 
     // ocorrências com de <= id <= ate, do mais velho pro mais novo
     intervalo(de, ate) {
@@ -158,13 +150,9 @@ class ArvoreBMais {
         return resultado;
     }
 
-    // inserção
-
-    // se o id já existe, só troca a ocorrência
     inserir(id, ocorrencia) {
         const divisao = this.inserirEm(this.raiz, 0, id, ocorrencia);
         if (divisao !== null) {
-            // a raiz dividiu: cria uma raiz nova em cima das duas metades
             const raiz = this.novoInterno();
             this.gravarNo(raiz, [divisao.chave], [this.raiz, divisao.no]);
             this.raiz = raiz;
@@ -183,7 +171,6 @@ class ArvoreBMais {
         const divisao = this.inserirEm(filhos[i], nivel + 1, id, ocorrencia);
         if (divisao === null) return null;
 
-        // o filho dividiu: encaixa a chave e o nó novo aqui
         chaves.splice(i, 0, divisao.chave);
         filhos.splice(i + 1, 0, divisao.no);
         if (chaves.length <= MAX_CHAVES) {
@@ -224,8 +211,6 @@ class ArvoreBMais {
         // na folha, sobe só uma cópia da chave (ela continua na folha)
         return { chave: direita.chaves[0], no: d };
     }
-
-    // remoção
 
     remover(id) {
         if (!this.removerEm(this.raiz, 0, id)) return false;
@@ -270,22 +255,18 @@ class ArvoreBMais {
         const dir = i < filhos.length - 1 ? this.folhas[filhos[i + 1]] : null;
 
         if (esq !== null && esq.chaves.length > this.minFolha) {
-            // a última da esquerda passa pra cá
             folha.chaves.unshift(esq.chaves.pop());
             folha.ocorrencias.unshift(esq.ocorrencias.pop());
             chaves[i - 1] = folha.chaves[0];
         } else if (dir !== null && dir.chaves.length > this.minFolha) {
-            // a primeira da direita passa pra cá
             folha.chaves.push(dir.chaves.shift());
             folha.ocorrencias.push(dir.ocorrencias.shift());
             chaves[i] = dir.chaves[0];
         } else if (esq !== null) {
-            // junta essa folha na da esquerda
             this.juntarFolhas(filhos[i - 1], filhos[i]);
             chaves.splice(i - 1, 1);
             filhos.splice(i, 1);
         } else {
-            // junta a da direita nessa
             this.juntarFolhas(filhos[i], filhos[i + 1]);
             chaves.splice(i, 1);
             filhos.splice(i + 1, 1);

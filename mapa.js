@@ -1,0 +1,143 @@
+// o mapa da rede: desenho em SVG, calor das ocorrências, zoom e arrasto.
+// usa resultado, regiaoFiltro e buscar do pagina.js.
+
+const CENTRAL = "Norristown";
+const svgMapa = document.getElementById("redeSvg");
+
+let vb = { x: 0, y: 0, w: 660, h: 390 };
+let arrastando = null;
+let arrastouMapa = false;
+
+function mostrarRede() {
+    const svg = svgMapa;
+    const nomes = rede.cidades.chaves();
+    if (nomes.length === 0) {
+        svg.innerHTML = "";
+        return;
+    }
+
+    const contagem = new TabelaHash();
+    let maxQtd = 0;
+    for (const o of resultado) {
+        const qtd = (contagem.buscar(o.regiao) ?? 0) + 1;
+        contagem.inserir(o.regiao, qtd);
+        if (qtd > maxQtd) maxQtd = qtd;
+    }
+
+    const s = vb.w / 660;
+    const rota = regiaoFiltro !== "" ? rede.caminhoMinimo(CENTRAL, regiaoFiltro) : null;
+
+    const todos = rede.cidades.valores().concat(CONTORNO_CONDADO.map(([lat, lng]) => ({ lat, lng })));
+    const minLat = Math.min(...todos.map((c) => c.lat)), maxLat = Math.max(...todos.map((c) => c.lat));
+    const minLng = Math.min(...todos.map((c) => c.lng)), maxLng = Math.max(...todos.map((c) => c.lng));
+    const pos = (c) => ({
+        x: 55 + ((c.lng - minLng) / (maxLng - minLng || 1)) * 540,
+        y: 372 - ((c.lat - minLat) / (maxLat - minLat || 1)) * 350,
+    });
+
+    const pontosMapa = CONTORNO_CONDADO.map(([lat, lng]) => {
+        const p = pos({ lat, lng });
+        return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    }).join(" ");
+    const linhas = [`<polygon points="${pontosMapa}" fill="#f8f8f5" stroke="#bbb" stroke-width="${1.5 * s}"/>`];
+
+    for (const a of rede.listaArestas) {
+        const p1 = pos(rede.cidades.buscar(a.u));
+        const p2 = pos(rede.cidades.buscar(a.v));
+        const par = `${a.u}|${a.v}`;
+        const naRota = rota !== null && rota.arestas.buscar(par) === true;
+        const naAgm = rede.agm.arestas.buscar(par) === true;
+        const cor = naRota ? "#06c" : naAgm ? "#888" : "#ddd";
+        const larg = (naRota ? 2.5 : naAgm ? 1.5 : 1) * s;
+        linhas.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${larg}"/>`);
+    }
+
+    nomes.forEach((nome, i) => {
+        const p = pos(rede.cidades.buscar(nome));
+        const qtd = contagem.buscar(nome) ?? 0;
+        const t = maxQtd > 0 ? qtd / maxQtd : 0;
+        const gb = Math.round(235 - t * 185);
+        const corFundo = qtd > 0 ? `rgb(245,${gb},${gb})` : "#eee";
+        const corBorda = nome === regiaoFiltro ? "#06c" : qtd > 0 ? "#a00" : "#555";
+        const esq = p.x > 520;
+        const rotulo = qtd > 0 ? `${nome} (${qtd})` : nome;
+        linhas.push(`<g data-cidade="${i}" style="cursor:pointer">`);
+        if (nome === CENTRAL) {
+            linhas.push(`<circle cx="${p.x}" cy="${p.y}" r="${8 * s}" fill="none" stroke="#333" stroke-width="${1.2 * s}"/>`);
+        }
+        linhas.push(
+            `<circle cx="${p.x}" cy="${p.y}" r="${(nome === regiaoFiltro ? 6 : 4.5) * s}" fill="${corFundo}" stroke="${corBorda}" stroke-width="${1.5 * s}"/>`,
+            `<text x="${p.x + (esq ? -9 : 9) * s}" y="${p.y + 3 * s}" text-anchor="${esq ? "end" : "start"}" font-size="${10 * s}" font-weight="${nome === regiaoFiltro || nome === CENTRAL ? "bold" : "normal"}" fill="${nome === regiaoFiltro ? "#06c" : "#222"}" paint-order="stroke" stroke="#f8f8f5" stroke-width="${2.5 * s}">${rotulo}</text>`,
+            `</g>`
+        );
+    });
+
+    if (rota !== null && regiaoFiltro !== CENTRAL) {
+        linhas.push(`<text id="rotuloRota" x="${vb.x + 12 * s}" y="${vb.y + 380 * s}" font-size="${11 * s}" fill="#06c">${rota.km} km da central</text>`);
+    }
+
+    svg.innerHTML = linhas.join("");
+    for (const no of svg.querySelectorAll("[data-cidade]")) {
+        const nome = nomes[no.dataset.cidade];
+        no.addEventListener("click", () => {
+            if (arrastouMapa) return;
+            el("viaturas").value = "";
+            regiaoFiltro = regiaoFiltro === nome ? "" : nome;
+            buscar();
+        });
+    }
+}
+
+function atualizarViewBox() {
+    svgMapa.setAttribute("viewBox", `${vb.x} ${vb.y} ${vb.w} ${vb.h}`);
+}
+
+function aplicarViewBox() {
+    atualizarViewBox();
+    mostrarRede();
+}
+
+// no arrasto basta mover a janela. redesenhar 125 elementos a cada mousemove é caro
+function moverViewBox() {
+    atualizarViewBox();
+    const rotulo = el("rotuloRota");
+    if (rotulo) {
+        const s = vb.w / 660;
+        rotulo.setAttribute("x", vb.x + 12 * s);
+        rotulo.setAttribute("y", vb.y + 380 * s);
+    }
+}
+
+svgMapa.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const fator = e.deltaY < 0 ? 0.85 : 1 / 0.85;
+    const nw = Math.min(660, Math.max(150, vb.w * fator));
+    const nh = (nw * 390) / 660;
+    const rx = e.offsetX / 660;
+    const ry = e.offsetY / 390;
+    vb.x = Math.max(0, Math.min(660 - nw, vb.x + (vb.w - nw) * rx));
+    vb.y = Math.max(0, Math.min(390 - nh, vb.y + (vb.h - nh) * ry));
+    vb.w = nw;
+    vb.h = nh;
+    aplicarViewBox();
+});
+
+svgMapa.addEventListener("mousedown", (e) => {
+    arrastando = { x: e.clientX, y: e.clientY, vbx: vb.x, vby: vb.y };
+    arrastouMapa = false;
+});
+
+window.addEventListener("mousemove", (e) => {
+    if (!arrastando) return;
+    const dx = e.clientX - arrastando.x;
+    const dy = e.clientY - arrastando.y;
+    if (Math.hypot(dx, dy) > 4) arrastouMapa = true;
+    vb.x = Math.max(0, Math.min(660 - vb.w, arrastando.vbx - (dx * vb.w) / 660));
+    vb.y = Math.max(0, Math.min(390 - vb.h, arrastando.vby - (dy * vb.h) / 390));
+    moverViewBox();
+});
+
+window.addEventListener("mouseup", () => {
+    if (arrastando && arrastouMapa) mostrarRede();
+    arrastando = null;
+});

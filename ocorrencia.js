@@ -48,8 +48,6 @@ function dataHoraDoId(id) {
     return data.toISOString().slice(0, 19).replace("T", " ");
 }
 
-// o hash de integridade
-
 // a ocorrência vira um texto só, e o hash é calculado em cima dele.
 // o sufixo do id fica de fora: assim duas ocorrências iguais no mesmo segundo dão o
 // mesmo hash, e a carga do CSV pega como duplicata

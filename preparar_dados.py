@@ -63,7 +63,6 @@ def arrumar_tipo(tipo):
     return tipo
 
 
-# 'Traffic: VEHICLE ACCIDENT -' vira ('Traffic', 'VEHICLE ACCIDENT')
 def dividir_title(title):
     categoria, _, tipo = title.partition(":")
     tipo = tipo.split(" -")[0]
@@ -78,11 +77,28 @@ def main():
     entrada = sys.argv[1] if len(sys.argv) > 1 else "911.csv"
     saida = sys.argv[2] if len(sys.argv) > 2 else "dados.csv"
 
-    # sem zip fica de fora. depois, as N mais recentes em ordem cronológica
     with open(entrada, newline="", encoding="utf-8") as f:
-        linhas = [l for l in csv.DictReader(f) if l["zip"].strip()]
-    linhas.sort(key=lambda l: l["timeStamp"])
-    linhas = linhas[-N:]
+        todas = [l for l in csv.DictReader(f) if l["zip"].strip() and l["twp"].strip()]
+    todas.sort(key=lambda l: l["timeStamp"])
+
+    # mediana de lat e lng das regiões nas chamadas recentes pra escolher as cidades do mapa.
+    # as escolhidas ficam a pelo menos 3,2 km uma da outra, pra os nomes não encavalarem
+    lats, lngs = {}, {}
+    for l in todas[-25000:]:
+        r = l["twp"].strip().title()
+        la, ln = float(l["lat"]), float(l["lng"])
+        if 39.9 < la < 40.5 and -75.8 < ln < -75.0:
+            lats.setdefault(r, []).append(la)
+            lngs.setdefault(r, []).append(ln)
+
+    centros = []
+    for r in sorted(lats, key=lambda r: -len(lats[r])):
+        la, ln = statistics.median(lats[r]), statistics.median(lngs[r])
+        if all(math.hypot((la - a) * 111, (ln - b) * 85) >= 3.2 for _, a, b in centros):
+            centros.append((r, la, ln))
+    escolhidas = {r for r, _, _ in centros}
+
+    linhas = [l for l in todas if l["twp"].strip().title() in escolhidas][-N:]
 
     # quanto somar em todas as datas pro último chamado cair em "agora"
     ultimo = segundos_utc(linhas[-1]["timeStamp"])
@@ -93,7 +109,6 @@ def main():
 
     ocorrencias = []
     sufixos = {}  # segundo -> quantos chamados já caíram nele
-    lats, lngs = {}, {}
     for l in linhas:
         original = segundos_utc(l["timeStamp"])
         segundos = original + deslocamento
@@ -106,33 +121,18 @@ def main():
         pendente = idade <= 48 and random.random() < math.exp(-idade / 12)
 
         categoria, tipo = dividir_title(l["title"])
-        regiao = l["twp"].strip().title()
-        # posição da região: acumula lat e lng dentro dos limites do condado pra tirar a mediana no fim
-        if regiao:
-            la, ln = float(l["lat"]), float(l["lng"])
-            if 39.9 < la < 40.5 and -75.8 < ln < -75.0:
-                lats.setdefault(regiao, []).append(la)
-                lngs.setdefault(regiao, []).append(ln)
-
         o = {
             "id": criar_id(segundos, sufixo),
             "categoria": categoria,
             "tipo": arrumar_tipo(tipo),
             "zip": l["zip"].strip(),
-            "regiao": regiao,
+            "regiao": l["twp"].strip().title(),
             "endereco": l["addr"].strip(),
             "atendido": 0 if pendente else 1,
         }
         o["hash"] = hash_da_ocorrencia(o)
         ocorrencias.append(o)
 
-    # a primeira linha do CSV (#regiao:lat:lng;...) guarda o centro de cada região pro mapa logístico.
-    # regiões a menos de 3,2 km de outra já incluída ficam de fora do mapa pra não encavalar os nomes
-    centros = []
-    for r in sorted(lats, key=lambda r: -len(lats[r])):
-        la, ln = statistics.median(lats[r]), statistics.median(lngs[r])
-        if all(math.hypot((la - a) * 111, (ln - b) * 85) >= 3.2 for _, a, b in centros):
-            centros.append((r, la, ln))
     cidades = [f"{r}:{la:.4f}:{ln:.4f}" for r, la, ln in sorted(centros)]
 
     with open(saida, "w", newline="", encoding="utf-8") as f:
@@ -143,7 +143,7 @@ def main():
             w.writerow({**o, "id": id_para_texto(o["id"])})
 
     pendentes = sum(1 for o in ocorrencias if o["atendido"] == 0)
-    print(f"{len(ocorrencias)} linhas gravadas em {saida} ({pendentes} pendentes)")
+    print(f"{len(ocorrencias)} linhas gravadas em {saida} ({pendentes} pendentes, {len(centros)} regiões)")
 
 
 if __name__ == "__main__":

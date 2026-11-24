@@ -1,7 +1,6 @@
-// o sistema: as estruturas, a carga do CSV com a integridade, a busca e a edição.
-// aqui não tem nada de tela, quem cuida dela é o pagina.js
+// o sistema: estruturas, carga do CSV, busca e edição. a tela fica no pagina.js
 
-// as estruturas. cada ocorrência existe uma vez só, na B+. os índices guardam
+// cada ocorrência existe uma vez só, na B+. os índices guardam
 // referências pro mesmo objeto, não cópias
 let ocorrencias = new ArvoreBMais(); // B+: id → ocorrência
 let palavras = new TST(); // TST: palavra do endereço → conjunto (hash id → ocorrência)
@@ -9,11 +8,8 @@ let idxTipo = new TabelaHash(); // tipo → conjunto (hash id → ocorrência)
 let idxRegiao = new TabelaHash(); // região → conjunto (hash id → ocorrência)
 let pendentes = new TabelaHash(); // id → ocorrência, só as não atendidas
 
-// índices
-
 // palavras que não ajudam a achar nada: tipo de via e direção.
 // quase todo endereço tem RD, ST ou AVE, então buscar por elas devolveria a base toda.
-// a lista é fixa, então procurar nela custa sempre o mesmo
 const TIPOS_DE_VIA = "RD ST AVE DR PIKE LN BLVD CIR WAY CT ALY PL TER TRL EXPY TPKE HWY ROAD PKWY LANE SQ PLZ";
 const DIRECOES = "N S E W NB SB EB WB";
 const IGNORADAS = (TIPOS_DE_VIA + " " + DIRECOES).split(" ");
@@ -25,7 +21,6 @@ function palavrasDe(endereco) {
     return lista.filter((p) => /[A-Z0-9]/.test(p) && !IGNORADAS.includes(p));
 }
 
-// coloca a ocorrência no conjunto da chave (cria o conjunto se for o primeiro)
 function colocarNoConjunto(indice, chave, o) {
     let conjunto = indice.buscar(chave);
     if (conjunto === undefined) {
@@ -53,15 +48,12 @@ function desindexar(o) {
     pendentes.remover(o.id);
 }
 
-// as chaves de um índice que ainda têm alguma ocorrência, em ordem alfabética
 function chavesUsadas(indice) {
     return indice
         .chaves()
         .filter((chave) => indice.buscar(chave).tamanho > 0)
         .sort();
 }
-
-// carga
 
 // cada linha vira um objeto { id: ..., categoria: ..., ... } usando o cabeçalho.
 // nenhum campo tem vírgula (a edição troca por espaço), então o split basta
@@ -150,9 +142,6 @@ function gerarCsv() {
     return linhas.join("\n") + "\n";
 }
 
-// busca
-
-// consultar por id vai direto na B+
 function consultarId(texto) {
     const id = textoParaId(texto);
     return id === null ? undefined : ocorrencias.buscar(id);
@@ -219,7 +208,6 @@ function comPrefixo(prefixo) {
 }
 
 function passa(o, c) {
-    // cada palavra buscada tem que ser começo de alguma palavra do endereço
     const doEndereco = palavrasDe(o.endereco);
     for (const p of c.endereco) {
         if (!doEndereco.some((q) => q.startsWith(p))) return false;
@@ -230,7 +218,6 @@ function passa(o, c) {
     if (c.soPendentes && o.atendido !== 0) return false;
     return o.id >= c.menor && o.id <= c.maior;
 }
-
 // recentes e antigos: se veio da B+, já está em ordem e não precisa ordenar.
 // senão ordena por id, que é o mesmo que ordenar por data.
 // prioridade: o sort do JS é estável (empate mantém a ordem de antes). então primeiro
@@ -248,8 +235,6 @@ function ordenar(lista, emOrdem, ordem) {
         lista.sort((a, b) => b.id - a.id);
     }
 }
-
-// cadastro, edição e remoção
 
 // cria (se o for null) ou altera uma ocorrência com os campos dados. devolve null, sem
 // mudar nada, se algum campo for inválido (a mesma regra da carga).
@@ -281,12 +266,18 @@ function removerOcorrencia(o) {
     desindexar(o);
 }
 
+async function marcarAtendida(o) {
+    if (o.atendido === 1) return;
+    o.atendido = 1;
+    pendentes.remover(o.id);
+    o.hash = await hashDaOcorrencia(o);
+}
+
 // vírgula vira espaço, senão quebraria a coluna no CSV
 function semVirgula(texto) {
     return texto.replaceAll(",", " ").trim();
 }
 
-// o segundo atual com o primeiro sufixo que ninguém usou
 function idDeAgora() {
     const segundos = Math.floor(Date.now() / 1000);
     let sufixo = 0;
@@ -294,7 +285,7 @@ function idDeAgora() {
     return criarId(segundos, sufixo);
 }
 
-// mochila 0/1 bottom-up: maximiza a soma de níveis de prioridade dentro do limite de viaturas
+// mochila 0/1 bottom-up: devolve o subconjunto que maximiza a soma de níveis de prioridade
 function otimizarViaturas(lista, limite) {
     const n = lista.length;
     const dp = Array.from({ length: n + 1 }, () => new Int32Array(limite + 1));
@@ -308,14 +299,13 @@ function otimizarViaturas(lista, limite) {
         }
     }
 
-    const selecionadas = new TabelaHash();
+    const escolhidas = [];
     let j = limite;
     for (let i = n; i >= 1; i--) {
         if (dp[i][j] !== dp[i - 1][j]) {
-            selecionadas.inserir(lista[i - 1].id, true);
+            escolhidas.push(lista[i - 1]);
             j -= viaturasDe(lista[i - 1]);
         }
     }
-
-    return { selecionadas, usadas: limite - j, prioridadeTotal: dp[n][limite] };
+    return escolhidas.reverse();
 }

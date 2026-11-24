@@ -22,8 +22,6 @@ class TST {
         this.raiz = null;
     }
 
-    // busca
-
     // o nó da última letra da chave, ou null se a chave não está na árvore
     buscarNo(chave) {
         let no = this.raiz;
@@ -41,15 +39,11 @@ class TST {
         return null;
     }
 
-    // o valor da chave, ou undefined se ela não está na árvore
     buscar(chave) {
         const no = this.buscarNo(chave);
         return no === null ? undefined : no.valor;
     }
 
-    // inserção
-
-    // se a chave já existe, só troca o valor
     inserir(chave, valor) {
         if (chave === "") return;
         this.raiz = this.inserirEm(this.raiz, chave, 0, valor);
@@ -66,8 +60,6 @@ class TST {
         else no.valor = valor;
         return no;
     }
-
-    // prefixo
 
     // chama fazer(chave, valor) pra cada chave que começa com o prefixo, em ordem alfabética
     paraCadaChave(prefixo, fazer) {

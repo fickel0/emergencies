@@ -1,9 +1,9 @@
 # fickel0/emergencies
 
 > [!NOTE] 
-> This is coursework for Computer Engineering at UFPel. It's educational. You might find a lot of Brazilian Portuguese.
+> This is coursework for Computer Engineering at UFPel. It's educational. You will find a lot of Brazilian Portuguese.
 
-Web CRUD for 911 emergency calls with compound queries. A [dataset from Kaggle](https://www.kaggle.com/datasets/mchirico/montcoalert) is preprocessed in Python then inserted into a sort of proto-database (though it's all in RAM). The point is the data structures: B+ tree for record storage, hash table for indexing and trie for autocomplete. Beats linear search.
+Web CRUD for 911 emergency calls with compound queries. A [dataset from Kaggle](https://www.kaggle.com/datasets/mchirico/montcoalert) is preprocessed in Python then inserted into a sort of proto-database (though it's all in RAM). The point is the data structures: B+ tree for record storage, hash table for indexing and trie for autocomplete. Beats linear search. It also uses a directed graph with topological sort and cycle detection, a 0/1 knapsack solved with dynamic programming for fleet dispatch, and a weighted road network with Dijkstra shortest paths and a Kruskal minimum spanning tree.
 
 ![Screenshot of the webpage, showing filters and a priority-sorted table of pending emergency incidents.](screenshot.png)
 

@@ -1,7 +1,6 @@
 // nível de prioridade de cada tipo, de 5 (risco de vida agora) a 1 (pode esperar).
 // precisa do tabelaHash.js carregado antes
 
-// a hash tipo → nível
 const prioridades = new TabelaHash();
 
 function definirNivel(nivel, tipos) {
@@ -153,7 +152,6 @@ definirViaturas(2, [
     "Medical alert alarm",
 ]);
 
-// os demais tipos usam 1 viatura
 function viaturasDe(o) {
     const v = viaturas.buscar(o.tipo);
     return v === undefined ? 1 : v;

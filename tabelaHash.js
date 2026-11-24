@@ -26,7 +26,7 @@ class TabelaHash {
 
     // em qual balde a chave cai. com a capacidade em potência de 2, o % só olha os bits de
     // baixo do hash (com 16 baldes, "A" e "Q" caem no mesmo). um primo espalharia melhor, mas
-    // com as chaves da base os baldes ficaram bem divididos: com 9.996 ids, o maior tem 5
+    // com as chaves da base os baldes ficaram bem divididos: com 10.000 ids, o maior tem 5
     baldeDa(chave) {
         return this.baldes[hashPolinomial(chave) % this.capacidade];
     }
@@ -39,7 +39,6 @@ class TabelaHash {
         return undefined;
     }
 
-    // se a chave já existe, só troca o valor
     inserir(chave, valor) {
         chave = String(chave);
         const balde = this.baldeDa(chave);
@@ -67,7 +66,7 @@ class TabelaHash {
         return false;
     }
 
-    // passou de 0,75 de carga: dobra a capacidade e coloca tudo de novo (rehash)
+    // carga acima de 0,75: dobra a capacidade e recoloca tudo (rehash)
     aumentar() {
         const antigos = this.baldes;
         this.capacidade *= 2;

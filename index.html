@@ -3,106 +3,131 @@
     <head>
         <meta charset="utf-8" />
         <title>Central de Emergências</title>
+        <style>
+            body { margin: 0; font-family: serif; }
+            .painel { display: flex; border-bottom: 1px solid #999; }
+            .painel > div { padding: 14px 16px; box-sizing: border-box; }
+            .col-esq { width: 15%; border-right: 1px solid #999; }
+            .col-esq h2 { margin: 0 0 12px; }
+            .col-esq p { margin: 8px 0; }
+            .col-meio { width: 35%; border-right: 1px solid #999; }
+            .col-meio form { margin: 0; }
+            .col-meio p { margin: 8px 0; }
+            .col-meio p:first-child { margin-top: 0; }
+            .col-meio p:last-child { margin-bottom: 0; }
+            .col-meio hr { border: 0; border-top: 1px solid #ccc; margin: 10px -16px; }
+            .col-mapa { width: 50%; padding: 0 !important; display: flex; }
+            #redeSvg { width: 100%; height: 100%; max-height: 44vh; display: block; user-select: none; }
+            .area-tabela { padding: 10px 14px; }
+            .barra-tabela { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+            table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+            th, td { padding: 5px 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid #eee; }
+            th { border-bottom: 1px solid #999; }
+            .centro { text-align: center; }
+            .acoes { text-align: right; }
+            .acoes button { padding: 1px 6px; margin-left: 3px; }
+        </style>
     </head>
     <body>
-        <h1>Central de Emergências</h1>
-
-        <p>
-            Carregar CSV: <input type="file" id="arquivo" accept=".csv" autocomplete="off" />
-            <span id="infoCarga"></span>
-        </p>
-
-        <p>
-            <button type="button" id="nova">Nova ocorrência</button>
-            <button type="button" id="salvarCsv">Salvar CSV</button>
-            <button type="button" id="abrirProtocolos">Protocolos de atendimento</button>
-            <button type="button" id="abrirRede">Rede logística</button>
-        </p>
-
-        <form id="consulta" autocomplete="off">
-            <fieldset>
-                <legend>Consultar por id</legend>
-                Id: <input id="id" size="10" required />
-                <button type="submit">Consultar</button>
-            </fieldset>
-        </form>
-
-        <form id="busca" autocomplete="off">
-            <fieldset>
-                <legend>Filtros</legend>
+        <div class="painel">
+            <div class="col-esq">
+                <h2>Central 911</h2>
                 <p>
-                    Endereço: <input id="endereco" list="sugestoes" size="30" />
-                    <datalist id="sugestoes"></datalist>
+                    CSV:<br />
+                    <input type="file" id="arquivo" accept=".csv" autocomplete="off" style="max-width: 100%; margin: 4px 0" /><br />
+                    <small id="infoCarga"></small>
                 </p>
+                <p><button type="button" id="salvarCsv">Salvar CSV</button></p>
+                <p><button type="button" id="nova">Nova ocorrência</button></p>
+                <p><button type="button" id="abrirProtocolos">Protocolos</button></p>
+            </div>
+
+            <div class="col-meio">
+                <form id="consulta" autocomplete="off">
+                    <p>
+                        ID: <input id="id" size="9" required />
+                        <button type="submit">Consultar</button>
+                    </p>
+                </form>
+                <hr />
+                <p style="display: flex; gap: 16px; align-items: center">
+                    <label>Viaturas: <input type="number" id="viaturas" min="1" max="500" style="width: 5em" autocomplete="off" /></label>
+                    <label><input type="checkbox" id="incluirAtendidas" /> incluir atendidas</label>
+                </p>
+                <hr />
+                <form id="busca" autocomplete="off">
+                    <p>
+                        Endereço: <input id="endereco" list="sugestoes" size="30" />
+                        <datalist id="sugestoes"></datalist>
+                    </p>
+                    <p>
+                        Categoria:
+                        <select id="categoria">
+                            <option value="">todas</option>
+                            <option>EMS</option>
+                            <option>Fire</option>
+                            <option>Traffic</option>
+                        </select>
+                        Tipo:
+                        <select id="tipo">
+                            <option value="">todos</option>
+                        </select>
+                    </p>
+                    <p>
+                        De <input type="datetime-local" id="de" step="1" /> até
+                        <input type="datetime-local" id="ate" step="1" />
+                    </p>
+                    <p>
+                        Período:
+                        <button type="button" data-minutos="30">30 min</button>
+                        <button type="button" data-minutos="1440">24 h</button>
+                        <button type="button" data-minutos="10080">7 dias</button>
+                        <button type="button" id="qualquerPeriodo">qualquer</button>
+                    </p>
+                    <hr />
+                    <p>
+                        Ordem:
+                        <label><input type="radio" name="ordem" value="prioridade" checked /> prioridade</label>
+                        <label><input type="radio" name="ordem" value="recentes" /> recentes</label>
+                        <label><input type="radio" name="ordem" value="antigos" /> antigos</label>
+                    </p>
+                </form>
+                <hr />
                 <p>
-                    Região:
-                    <select id="regiao">
-                        <option value="">todas</option>
-                    </select>
-                    Categoria:
-                    <select id="categoria">
-                        <option value="">todas</option>
-                        <option>EMS</option>
-                        <option>Fire</option>
-                        <option>Traffic</option>
-                    </select>
-                    Tipo:
-                    <select id="tipo">
-                        <option value="">todos</option>
-                    </select>
+                    <button type="button" id="atenderLote">Atender (0)</button>
+                    <button type="button" id="limpar">Limpar</button>
                 </p>
-                <p>
-                    Período: de <input type="datetime-local" id="de" step="1" /> até
-                    <input type="datetime-local" id="ate" step="1" />
-                    <button type="button" data-minutos="30">30 min</button>
-                    <button type="button" data-minutos="1440">24 h</button>
-                    <button type="button" data-minutos="10080">7 dias</button>
-                    <button type="button" id="qualquerPeriodo">qualquer período</button>
-                </p>
-                <p>
-                    <label><input type="checkbox" id="soPendentes" checked /> só pendentes</label>
-                </p>
-            </fieldset>
+            </div>
 
-            <fieldset>
-                <legend>Ordem</legend>
-                <label><input type="radio" name="ordem" value="recentes" /> recentes primeiro</label>
-                <label><input type="radio" name="ordem" value="antigos" /> antigos primeiro</label>
-                <label><input type="radio" name="ordem" value="prioridade" checked /> prioridade</label>
-            </fieldset>
+            <div class="col-mapa">
+                <svg id="redeSvg" width="660" height="390" viewBox="0 0 660 390"></svg>
+            </div>
+        </div>
 
-            <fieldset>
-                <legend>Planejamento de atendimento</legend>
-                Viaturas disponíveis: <input type="number" id="viaturas" min="1" max="500" style="width: 5em" />
-                <span id="resumoViaturas"></span>
-            </fieldset>
+        <div class="area-tabela">
+            <div class="barra-tabela">
+                <strong id="contagem"></strong>
+                <div><button id="anterior">Anterior</button> <span id="pagina"></span> <button id="proxima">Próxima</button></div>
+            </div>
 
-            <p>
-                <button type="button" id="limpar">Limpar</button>
-            </p>
-        </form>
-
-        <p id="contagem"></p>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>Id</th>
-                    <th>Data/hora</th>
-                    <th>Categoria</th>
-                    <th>Tipo</th>
-                    <th>Nível</th>
-                    <th>Viaturas</th>
-                    <th>Região</th>
-                    <th>Endereço</th>
-                    <th>Situação</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody id="linhas"></tbody>
-        </table>
-
-        <p><button id="anterior">Anterior</button> <span id="pagina"></span> <button id="proxima">Próxima</button></p>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 7%">ID</th>
+                        <th style="width: 14%">Data/hora</th>
+                        <th style="width: 5%">Cat.</th>
+                        <th style="width: 21%">Tipo</th>
+                        <th class="centro" style="width: 4%">Nível</th>
+                        <th class="centro" style="width: 4%">Viat.</th>
+                        <th style="width: 13%">Região</th>
+                        <th style="width: 23%">Endereço</th>
+                        <th class="centro" style="width: 3%">Sit.</th>
+                        <th class="acoes" style="width: 6%"></th>
+                    </tr>
+                </thead>
+                <tbody id="linhas"></tbody>
+            </table>
+        </div>
 
         <dialog id="janela">
             <form method="dialog" id="editor" autocomplete="off">
@@ -152,23 +177,11 @@
                         <option>Traffic</option>
                     </select>
                 </p>
-                <svg id="grafoSvg" width="980" height="440"></svg>
+                <svg id="grafoSvg" width="900" height="400"></svg>
                 <p>
                     <button value="salvar">Salvar</button>
                     <button value="cancelar">Cancelar</button>
                 </p>
-            </form>
-        </dialog>
-
-        <dialog id="janelaRede">
-            <form method="dialog">
-                <p>
-                    <strong>Rede logística:</strong>
-                    <label><input type="radio" name="modoRede" value="caminho" checked /> caminho mínimo <span id="kmCaminho"></span></label>
-                    <label><input type="radio" name="modoRede" value="agm" /> árvore geradora mínima <span id="kmAgm"></span></label>
-                </p>
-                <svg id="redeSvg" width="980" height="540"></svg>
-                <p><button>Fechar</button></p>
             </form>
         </dialog>
 
@@ -181,6 +194,7 @@
         <script src="prioridades.js"></script>
         <script src="protocolos.js"></script>
         <script src="central.js"></script>
+        <script src="mapa.js"></script>
         <script src="pagina.js"></script>
     </body>
 </html>

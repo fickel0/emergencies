@@ -3,10 +3,9 @@
 const POR_PAGINA = 50;
 
 let resultado = [];
-let simulacao = null;
+let regiaoFiltro = "";
 let pagina = 0;
 
-// atalho pra pegar um elemento pelo id
 function el(id) {
     return document.getElementById(id);
 }
@@ -20,7 +19,6 @@ function novaOpcao(texto, valor) {
 
 // carga
 
-// tudo fica só na memória: um F5 apaga os dados e a escolha do arquivo
 el("arquivo").addEventListener("change", async () => {
     const arquivo = el("arquivo").files[0];
     if (arquivo) carregar(await arquivo.text());
@@ -41,7 +39,6 @@ async function carregar(texto) {
     buscar();
 }
 
-// o título com a quantidade e as 20 primeiras, pra janela não ficar enorme
 function parteDoRelatorio(titulo, lista) {
     const linhas = [`${titulo}: ${lista.length}`];
     for (const item of lista.slice(0, 20)) linhas.push("  " + item);
@@ -49,31 +46,30 @@ function parteDoRelatorio(titulo, lista) {
     return linhas.join("\n");
 }
 
-// as listas de região e de tipo saem das chaves dos próprios índices. o que estava
-// escolhido continua escolhido (depois de salvar uma ocorrência, por exemplo)
 function preencherListas() {
-    const regiaoEscolhida = el("regiao").value;
-    const tipoEscolhido = el("tipo").value;
-
-    el("regiao").replaceChildren(novaOpcao("todas", ""));
     el("regioesConhecidas").replaceChildren();
     for (const regiao of chavesUsadas(idxRegiao)) {
-        el("regiao").append(novaOpcao(regiao, regiao));
         el("regioesConhecidas").append(novaOpcao(regiao, regiao));
     }
 
-    el("tipo").replaceChildren(novaOpcao("todos", ""));
-    for (const tipo of chavesUsadas(idxTipo)) el("tipo").append(novaOpcao(tipo, tipo));
-
-    // na janela de edição, a sugestão de tipo são os da tabela de prioridades
     el("tiposConhecidos").replaceChildren();
     for (const tipo of prioridades.chaves().sort()) el("tiposConhecidos").append(novaOpcao(tipo, tipo));
 
-    el("regiao").value = regiaoEscolhida;
-    el("tipo").value = tipoEscolhido;
+    atualizarTipos();
 }
 
-// salvar CSV: baixa o arquivo
+function atualizarTipos() {
+    const cat = el("categoria").value;
+    const tipoEscolhido = el("tipo").value;
+    el("tipo").replaceChildren(novaOpcao("todos", ""));
+    for (const tipo of chavesUsadas(idxTipo)) {
+        if (cat === "" || idxTipo.buscar(tipo).valores().some((o) => o.categoria === cat)) {
+            el("tipo").append(novaOpcao(tipo, tipo));
+        }
+    }
+    el("tipo").value = [...el("tipo").options].some((o) => o.value === tipoEscolhido) ? tipoEscolhido : "";
+}
+
 el("salvarCsv").addEventListener("click", () => {
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([gerarCsv()], { type: "text/csv" }));
@@ -83,8 +79,6 @@ el("salvarCsv").addEventListener("click", () => {
 
 // busca
 
-// a cada letra digitada, sugere as palavras que começam com a última palavra do campo.
-// as palavras de antes ficam como estão
 el("endereco").addEventListener("input", () => {
     el("sugestoes").replaceChildren();
     const texto = el("endereco").value.toUpperCase();
@@ -96,43 +90,72 @@ el("endereco").addEventListener("input", () => {
     }
 });
 
-// o id não combina com os filtros, então eles são limpos (e, no contrário, buscar pelos
-// filtros apaga o id)
+function limparFiltros() {
+    el("busca").reset();
+    el("incluirAtendidas").checked = false;
+    el("viaturas").disabled = false;
+    regiaoFiltro = "";
+    atualizarTipos();
+}
+
+function atualizarTela() {
+    if (el("id").value !== "") el("consulta").requestSubmit();
+    else if (el("viaturas").value !== "") despacharOuBuscar();
+    else buscar();
+}
+
 el("consulta").addEventListener("submit", (evento) => {
-    evento.preventDefault(); // senão o formulário recarrega a página
-    el("endereco").value = "";
-    el("regiao").value = "";
-    el("categoria").value = "";
-    el("tipo").value = "";
-    el("de").value = "";
-    el("ate").value = "";
-    el("soPendentes").checked = false;
+    evento.preventDefault();
+    el("viaturas").value = "";
+    limparFiltros();
     const o = consultarId(el("id").value);
     mostrarResultado(o === undefined ? [] : [o]);
 });
 
-// qualquer mudança num filtro (digitar, escolher, marcar) já refaz a busca.
-// escolher uma sugestão do endereço também conta como mudança
-el("busca").addEventListener("input", buscar);
+el("incluirAtendidas").addEventListener("change", () => {
+    const inc = el("incluirAtendidas").checked;
+    el("viaturas").value = "";
+    el("viaturas").disabled = inc;
+    buscar();
+});
 
-// o Enter não pode enviar o formulário, senão a página recarrega
+el("viaturas").addEventListener("input", () => {
+    el("id").value = "";
+    limparFiltros();
+    despacharOuBuscar();
+});
+
+el("atenderLote").addEventListener("click", async () => {
+    for (const o of resultado.filter((o) => o.atendido === 0)) await marcarAtendida(o);
+    atualizarTela();
+});
+
+el("categoria").addEventListener("change", atualizarTipos);
+
+el("busca").addEventListener("input", () => {
+    el("viaturas").value = "";
+    buscar();
+});
+
 el("busca").addEventListener("submit", (evento) => evento.preventDefault());
 
-// volta tudo pro padrão: só pendentes, por prioridade, sem endereço, região, tipo nem período
 el("limpar").addEventListener("click", () => {
-    el("busca").reset();
+    el("id").value = "";
+    el("viaturas").value = "";
+    limparFiltros();
     buscar();
 });
 
 el("qualquerPeriodo").addEventListener("click", () => {
+    el("viaturas").value = "";
     el("de").value = "";
     el("ate").value = "";
     buscar();
 });
 
-// os atalhos preenchem de (agora - x minutos) até agora
 for (const botao of document.querySelectorAll("[data-minutos]")) {
     botao.addEventListener("click", () => {
+        el("viaturas").value = "";
         const agora = Date.now();
         el("de").value = paraCampo(agora - botao.dataset.minutos * 60 * 1000);
         el("ate").value = paraCampo(agora);
@@ -140,7 +163,6 @@ for (const botao of document.querySelectorAll("[data-minutos]")) {
     });
 }
 
-// o campo datetime-local quer "2026-10-05T14:30:00" no horário local
 function paraCampo(ms) {
     const fuso = new Date(ms).getTimezoneOffset() * 60 * 1000;
     return new Date(ms - fuso).toISOString().slice(0, 19);
@@ -156,22 +178,30 @@ function buscar() {
     const ate = el("ate").value;
     const lista = buscarOcorrencias({
         endereco: palavrasDe(el("endereco").value),
-        regiao: el("regiao").value,
+        regiao: regiaoFiltro,
         categoria: el("categoria").value,
         tipo: el("tipo").value,
-        soPendentes: el("soPendentes").checked,
-        ordem: el("busca").ordem.value, // recentes, antigos ou prioridade
-        // o período vira um intervalo de ids: do primeiro sufixo do segundo inicial até
-        // o último sufixo do segundo final. sem data, vai do começo ao fim
+        soPendentes: !el("incluirAtendidas").checked,
+        ordem: el("busca").ordem.value,
         menor: de ? criarId(paraSegundos(de), 0) : 0,
         maior: ate ? criarId(paraSegundos(ate), 255) : Number.MAX_SAFE_INTEGER,
     });
     mostrarResultado(lista);
 }
 
+function despacharOuBuscar() {
+    const limite = Math.min(500, Math.floor(Number(el("viaturas").value)));
+    if (!(limite > 0)) {
+        buscar();
+        return;
+    }
+    const todasPendentes = pendentes.valores();
+    ordenar(todasPendentes, false, "prioridade");
+    mostrarResultado(otimizarViaturas(todasPendentes, limite));
+}
+
 // janela de cadastro e edição
 
-// a mesma janela serve pra criar e editar. editando é a ocorrência aberta, ou null se for nova
 let editando = null;
 
 el("nova").addEventListener("click", () => abrirJanela(null));
@@ -192,12 +222,10 @@ function abrirJanela(o) {
         f.endereco.value = o.endereco;
         f.atendido.checked = o.atendido === 1;
     }
-    el("janela").returnValue = ""; // o Esc fecha sem mudar isso, então conta como cancelar
+    el("janela").returnValue = "";
     el("janela").showModal();
 }
 
-// o form da janela é method="dialog": qualquer botão fecha a janela, e o value do botão
-// vira o returnValue
 el("janela").addEventListener("close", async () => {
     const acao = el("janela").returnValue;
     const f = el("editor");
@@ -217,36 +245,22 @@ el("janela").addEventListener("close", async () => {
         return;
     }
     preencherListas();
-    // refaz o que estava na tela: a consulta por id, se tinha uma, ou a busca pelos filtros
-    if (el("id").value !== "") el("consulta").requestSubmit();
-    else buscar();
+    atualizarTela();
 });
 
 // tabela e páginas
 
-// só a exibição é dividida em páginas: o resultado inteiro já foi calculado (a tela mostra
-// o total e a ordem por prioridade precisa de todo mundo). é só pra não desenhar
-// 10 mil linhas de uma vez
-
 function mostrarResultado(lista) {
-    const limite = Math.min(500, Math.floor(Number(el("viaturas").value)));
-    if (limite > 0 && lista.length > 0) {
-        const sim = otimizarViaturas(lista, limite);
-        const dentro = lista.filter((o) => sim.selecionadas.buscar(o.id) === true);
-        const fora = lista.filter((o) => sim.selecionadas.buscar(o.id) === undefined);
-        resultado = dentro.concat(fora);
-        simulacao = sim.selecionadas;
-        el("resumoViaturas").textContent =
-            `${dentro.length} selecionadas e ${fora.length} de fora ` +
-            `(${sim.usadas}/${limite} viaturas empenhadas, prioridade total ${sim.prioridadeTotal})`;
-    } else {
-        resultado = lista;
-        simulacao = null;
-        el("resumoViaturas").textContent = "";
-    }
+    resultado = lista;
+    const btn = el("atenderLote");
+    const pendentesNaLista = lista.filter((o) => o.atendido === 0).length;
+    btn.hidden = el("incluirAtendidas").checked;
+    btn.disabled = pendentesNaLista === 0;
+    btn.textContent = `Atender (${pendentesNaLista})`;
     el("contagem").textContent = `${resultado.length} ocorrências`;
     pagina = 0;
     mostrar();
+    mostrarRede();
 }
 
 el("anterior").addEventListener("click", () => {
@@ -267,20 +281,30 @@ function mostrar() {
     const tabela = el("linhas");
     tabela.replaceChildren();
     for (const o of resultado.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA)) {
-        const data = dataNaTela(o.id);
-        let situacao = o.atendido ? "atendida" : "pendente";
         const tr = tabela.insertRow();
-        if (simulacao !== null) {
-            const entrou = simulacao.buscar(o.id) === true;
-            situacao = entrou ? "selecionada" : "de fora";
-            if (!entrou) tr.style.opacity = "0.45";
+        if (o.atendido === 1) tr.style.opacity = "0.4";
+        const sit = o.atendido ? "A" : "P";
+        const valores = [idParaTexto(o.id), dataNaTela(o.id), o.categoria, o.tipo, nivelDe(o), viaturasDe(o), o.regiao, o.endereco, sit];
+        valores.forEach((valor, idx) => {
+            const td = tr.insertCell();
+            td.textContent = valor;
+            if (idx === 4 || idx === 5 || idx === 8) td.className = "centro";
+        });
+        const acoes = tr.insertCell();
+        acoes.className = "acoes";
+        if (!o.atendido) {
+            const atender = document.createElement("button");
+            atender.textContent = "A";
+            atender.addEventListener("click", async () => {
+                await marcarAtendida(o);
+                atualizarTela();
+            });
+            acoes.append(atender);
         }
-        const valores = [idParaTexto(o.id), data, o.categoria, o.tipo, nivelDe(o), viaturasDe(o), o.regiao, o.endereco, situacao];
-        for (const valor of valores) tr.insertCell().textContent = valor;
         const editar = document.createElement("button");
-        editar.textContent = "editar";
+        editar.textContent = "E";
         editar.addEventListener("click", () => abrirJanela(o));
-        tr.insertCell().append(editar);
+        acoes.append(editar);
     }
     const totalPaginas = Math.max(1, Math.ceil(resultado.length / POR_PAGINA));
     el("pagina").textContent = `página ${pagina + 1} de ${totalPaginas}`;
@@ -289,6 +313,8 @@ function mostrar() {
 }
 
 mostrar();
+
+// protocolos de atendimento
 
 let selecionado = null;
 let rascunhos = null;
@@ -330,11 +356,9 @@ el("categoriaProtocolo").addEventListener("change", () => {
 function mostrarProtocolo() {
     const g = grafoAtual();
     const res = g.ordemTopologica();
-    const n = ETAPAS.length;
-    const pos = new TabelaHash();
-    ETAPAS.forEach((v, i) => {
-        const ang = (2 * Math.PI * i) / n - Math.PI / 2;
-        pos.inserir(v, { x: 490 + 170 * Math.cos(ang), y: 220 + 160 * Math.sin(ang), cos: Math.cos(ang) });
+    const pos = ETAPAS.map((_, i) => {
+        const ang = (2 * Math.PI * i) / ETAPAS.length - Math.PI / 2;
+        return { x: 450 + 165 * Math.cos(ang), y: 200 + 150 * Math.sin(ang), cos: Math.cos(ang) };
     });
 
     const arestas = g.arestas();
@@ -346,8 +370,8 @@ function mostrarProtocolo() {
     ];
 
     arestas.forEach(([u, v], i) => {
-        const a = pos.buscar(u);
-        const b = pos.buscar(v);
+        const a = pos[ETAPAS.indexOf(u)];
+        const b = pos[ETAPAS.indexOf(v)];
         const dist = Math.hypot(b.x - a.x, b.y - a.y) || 1;
         const dx = (b.x - a.x) / dist;
         const dy = (b.y - a.y) / dist;
@@ -370,7 +394,7 @@ function mostrarProtocolo() {
     });
 
     ETAPAS.forEach((v, i) => {
-        const { x, y, cos } = pos.buscar(v);
+        const { x, y, cos } = pos[i];
         const bloq = res.noCiclo.buscar(v) === true;
         const sel = v === selecionado;
         const idx = res.ordem.indexOf(v);
@@ -413,98 +437,3 @@ function mostrarProtocolo() {
     }
 }
 
-let origemRede = null;
-let destinoRede = null;
-
-el("abrirRede").addEventListener("click", () => {
-    origemRede = null;
-    destinoRede = null;
-    document.querySelector("[name=modoRede][value=caminho]").checked = true;
-    mostrarRede();
-    el("janelaRede").showModal();
-});
-
-for (const radio of document.querySelectorAll("[name=modoRede]")) {
-    radio.addEventListener("change", mostrarRede);
-}
-
-function mostrarRede() {
-    const svg = el("redeSvg");
-    const nomes = rede.cidades.chaves();
-    el("kmCaminho").textContent = "";
-    el("kmAgm").textContent = "";
-    if (nomes.length === 0) {
-        svg.innerHTML = "";
-        return;
-    }
-
-    const modo = document.querySelector("[name=modoRede]:checked").value;
-    let arestasDestaque = new TabelaHash();
-    let nosDestaque = new TabelaHash();
-
-    if (modo === "agm") {
-        const agm = rede.arvoreGeradoraMinima();
-        arestasDestaque = agm.arestas;
-        el("kmAgm").textContent = `(${agm.km} km)`;
-    } else if (origemRede && destinoRede) {
-        const rota = rede.caminhoMinimo(origemRede, destinoRede);
-        arestasDestaque = rota.arestas;
-        for (const c of rota.caminho) nosDestaque.inserir(c, true);
-        el("kmCaminho").textContent = `(${rota.km} km)`;
-    } else if (origemRede) {
-        nosDestaque.inserir(origemRede, true);
-    }
-
-    const todos = rede.cidades.valores().concat(CONTORNO_CONDADO.map(([lat, lng]) => ({ lat, lng })));
-    const minLat = Math.min(...todos.map((c) => c.lat)), maxLat = Math.max(...todos.map((c) => c.lat));
-    const minLng = Math.min(...todos.map((c) => c.lng)), maxLng = Math.max(...todos.map((c) => c.lng));
-    const pos = (c) => ({
-        x: 70 + ((c.lng - minLng) / (maxLng - minLng || 1)) * 820,
-        y: 515 - ((c.lat - minLat) / (maxLat - minLat || 1)) * 490,
-    });
-
-    const pontosMapa = CONTORNO_CONDADO.map(([lat, lng]) => {
-        const p = pos({ lat, lng });
-        return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
-    }).join(" ");
-    const linhas = [`<polygon points="${pontosMapa}" fill="#f8f8f5" stroke="#bbb" stroke-width="1.5"/>`];
-    for (const a of rede.listaArestas) {
-        const p1 = pos(rede.cidades.buscar(a.u));
-        const p2 = pos(rede.cidades.buscar(a.v));
-        const ativa = arestasDestaque.buscar(`${a.u}|${a.v}`) === true;
-        const cor = ativa ? "#06c" : "#ccc";
-        const larg = ativa ? 2.5 : 1;
-        linhas.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${larg}"/>`);
-    }
-
-    nomes.forEach((nome, i) => {
-        const p = pos(rede.cidades.buscar(nome));
-        const ativo = nosDestaque.buscar(nome) === true;
-        const corBorda = ativo ? "#06c" : "#333";
-        const corFundo = ativo ? "#def" : "#eee";
-        const esq = p.x > 820;
-        linhas.push(
-            `<g data-cidade="${i}" style="cursor:pointer">`,
-            `<circle cx="${p.x}" cy="${p.y}" r="${ativo ? 6 : 4.5}" fill="${corFundo}" stroke="${corBorda}" stroke-width="1.5"/>`,
-            `<text x="${p.x + (esq ? -8 : 8)}" y="${p.y + 3}" text-anchor="${esq ? "end" : "start"}" font-size="11" font-weight="${ativo ? "bold" : "normal"}" fill="${corBorda}">${nome}</text>`,
-            `</g>`
-        );
-    });
-
-    svg.innerHTML = linhas.join("");
-    for (const no of svg.querySelectorAll("[data-cidade]")) {
-        const nome = nomes[no.dataset.cidade];
-        no.addEventListener("click", () => {
-            if (modo !== "caminho") return;
-            if (!origemRede || destinoRede) {
-                origemRede = nome;
-                destinoRede = null;
-            } else if (origemRede === nome) {
-                origemRede = null;
-            } else {
-                destinoRede = nome;
-            }
-            mostrarRede();
-        });
-    }
-}
