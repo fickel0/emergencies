@@ -132,6 +132,13 @@ el("atenderLote").addEventListener("click", async () => {
 
 el("categoria").addEventListener("change", atualizarTipos);
 
+for (const r of document.querySelectorAll('input[name="ordem"]')) {
+    r.addEventListener("change", () => {
+        el("viaturas").value = "";
+        buscar();
+    });
+}
+
 el("busca").addEventListener("input", () => {
     el("viaturas").value = "";
     buscar();
@@ -212,7 +219,7 @@ function abrirJanela(o) {
     f.reset();
     el("botaoRemover").hidden = o === null;
     if (o === null) {
-        el("tituloJanela").textContent = "Nova ocorrência (com a data e hora de agora)";
+        el("tituloJanela").textContent = "Nova ocorrência";
     } else {
         el("tituloJanela").textContent = `Ocorrência ${idParaTexto(o.id)}, de ${dataNaTela(o.id)}`;
         f.categoria.value = o.categoria;
@@ -256,7 +263,7 @@ function mostrarResultado(lista) {
     const pendentesNaLista = lista.filter((o) => o.atendido === 0).length;
     btn.hidden = el("incluirAtendidas").checked;
     btn.disabled = pendentesNaLista === 0;
-    btn.textContent = `Atender (${pendentesNaLista})`;
+    btn.textContent = `✓ Atender (${pendentesNaLista})`;
     el("contagem").textContent = `${resultado.length} ocorrências`;
     pagina = 0;
     mostrar();
@@ -282,7 +289,6 @@ function mostrar() {
     tabela.replaceChildren();
     for (const o of resultado.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA)) {
         const tr = tabela.insertRow();
-        if (o.atendido === 1) tr.style.opacity = "0.4";
         const sit = o.atendido ? "A" : "P";
         const valores = [idParaTexto(o.id), dataNaTela(o.id), o.categoria, o.tipo, nivelDe(o), viaturasDe(o), o.regiao, o.endereco, sit];
         valores.forEach((valor, idx) => {
@@ -294,7 +300,7 @@ function mostrar() {
         acoes.className = "acoes";
         if (!o.atendido) {
             const atender = document.createElement("button");
-            atender.textContent = "A";
+            atender.textContent = "✓";
             atender.addEventListener("click", async () => {
                 await marcarAtendida(o);
                 atualizarTela();
@@ -302,7 +308,7 @@ function mostrar() {
             acoes.append(atender);
         }
         const editar = document.createElement("button");
-        editar.textContent = "E";
+        editar.textContent = "✎";
         editar.addEventListener("click", () => abrirJanela(o));
         acoes.append(editar);
     }
@@ -436,4 +442,3 @@ function mostrarProtocolo() {
         });
     }
 }
-

@@ -4,25 +4,43 @@
         <meta charset="utf-8" />
         <title>Central de Emergências</title>
         <style>
-            body { margin: 0; font-family: serif; }
-            .painel { display: flex; border-bottom: 1px solid #999; }
+            body { margin: 0; font: 13.5px/1.4 system-ui, -apple-system, sans-serif; color: #1f2328; }
+            button, ::file-selector-button, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select {
+                font: inherit; padding: 3px 8px; border: 1px solid #c8d1d9; border-radius: 4px; background: #f6f8fa; color: inherit;
+            }
+            input[type="file"] { font: inherit; }
+            ::file-selector-button { padding: 3px 6px; margin-right: 4px; cursor: pointer; }
+            input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select { background: #fff; }
+            button { cursor: pointer; }
+            button:hover:not(:disabled), ::file-selector-button:hover { background: #eaeef2; }
+            button:disabled { opacity: 0.5; }
+            #abrirProtocolos { background: #ddf4ff; border-color: #54aeff; color: #0969da; font-weight: 500; }
+            #abrirProtocolos:hover { background: #b6e3ff; }
+            dialog { border: 1px solid #d0d7de; border-radius: 6px; padding: 14px 18px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); color: inherit; }
+            dialog::backdrop { background: rgba(0, 0, 0, 0.25); }
+            dialog form p:first-child { margin-top: 0; }
+            dialog form p:last-child { margin-bottom: 0; }
+            .direita { text-align: right; }
+            .painel { display: flex; border-bottom: 1px solid #d0d7de; }
             .painel > div { padding: 14px 16px; box-sizing: border-box; }
-            .col-esq { width: 15%; border-right: 1px solid #999; }
+            .col-esq { width: 15%; border-right: 1px solid #d0d7de; }
             .col-esq h2 { margin: 0 0 12px; }
             .col-esq p { margin: 8px 0; }
-            .col-meio { width: 35%; border-right: 1px solid #999; }
+            .col-meio { width: 35%; border-right: 1px solid #d0d7de; display: flex; flex-direction: column; }
             .col-meio form { margin: 0; }
             .col-meio p { margin: 8px 0; }
             .col-meio p:first-child { margin-top: 0; }
             .col-meio p:last-child { margin-bottom: 0; }
-            .col-meio hr { border: 0; border-top: 1px solid #ccc; margin: 10px -16px; }
+            .col-meio hr { border: 0; border-top: 1px solid #e5e9ef; margin: 10px -16px; }
+            .rodape-filtros { margin-top: auto; }
             .col-mapa { width: 50%; padding: 0 !important; display: flex; }
             #redeSvg { width: 100%; height: 100%; max-height: 44vh; display: block; user-select: none; }
             .area-tabela { padding: 10px 14px; }
             .barra-tabela { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
             table { width: 100%; table-layout: fixed; border-collapse: collapse; }
             th, td { padding: 5px 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid #eee; }
-            th { border-bottom: 1px solid #999; }
+            th { background: #f6f8fa; font-weight: 600; border-bottom: 1px solid #d0d7de; }
+            tbody tr:hover { background: #f6f8fa; }
             .centro { text-align: center; }
             .acoes { text-align: right; }
             .acoes button { padding: 1px 6px; margin-left: 3px; }
@@ -34,7 +52,7 @@
                 <h2>Central 911</h2>
                 <p>
                     CSV:<br />
-                    <input type="file" id="arquivo" accept=".csv" autocomplete="off" style="max-width: 100%; margin: 4px 0" /><br />
+                    <input type="file" id="arquivo" accept=".csv" autocomplete="off" style="width: 100%; margin: 4px 0" /><br />
                     <small id="infoCarga"></small>
                 </p>
                 <p><button type="button" id="salvarCsv">Salvar CSV</button></p>
@@ -84,19 +102,20 @@
                         <button type="button" data-minutos="10080">7 dias</button>
                         <button type="button" id="qualquerPeriodo">qualquer</button>
                     </p>
+                    <p class="direita">
+                        <button type="button" id="atenderLote">✓ Atender (0)</button>
+                        <button type="button" id="limpar">Limpar</button>
+                    </p>
+                </form>
+                <div class="rodape-filtros">
                     <hr />
                     <p>
                         Ordem:
-                        <label><input type="radio" name="ordem" value="prioridade" checked /> prioridade</label>
-                        <label><input type="radio" name="ordem" value="recentes" /> recentes</label>
-                        <label><input type="radio" name="ordem" value="antigos" /> antigos</label>
+                        <label><input type="radio" name="ordem" value="prioridade" form="busca" checked /> prioridade</label>
+                        <label><input type="radio" name="ordem" value="recentes" form="busca" /> recentes</label>
+                        <label><input type="radio" name="ordem" value="antigos" form="busca" /> antigos</label>
                     </p>
-                </form>
-                <hr />
-                <p>
-                    <button type="button" id="atenderLote">Atender (0)</button>
-                    <button type="button" id="limpar">Limpar</button>
-                </p>
+                </div>
             </div>
 
             <div class="col-mapa">
@@ -151,7 +170,7 @@
                 <p>
                     <label><input type="checkbox" name="atendido" /> atendida</label>
                 </p>
-                <p>
+                <p class="direita">
                     <button value="salvar">Salvar</button>
                     <button value="remover" id="botaoRemover" formnovalidate>Remover</button>
                     <button value="cancelar" formnovalidate>Cancelar</button>
@@ -163,7 +182,7 @@
             <form method="dialog">
                 <p><strong>Relatório da carga</strong></p>
                 <pre id="textoRelatorio"></pre>
-                <button>Fechar</button>
+                <p class="direita"><button>Fechar</button></p>
             </form>
         </dialog>
 
@@ -178,7 +197,7 @@
                     </select>
                 </p>
                 <svg id="grafoSvg" width="900" height="400"></svg>
-                <p>
+                <p class="direita">
                     <button value="salvar">Salvar</button>
                     <button value="cancelar">Cancelar</button>
                 </p>
