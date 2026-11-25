@@ -22,7 +22,7 @@ const CONTORNO_CONDADO = [
 ];
 const svgMapa = document.getElementById("redeSvg");
 
-let vb = { x: 0, y: 0, w: 660, h: 390 };
+let vb = { x: 70, y: 35, w: 490, h: 290 };
 let arrastando = null;
 let arrastouMapa = false;
 
@@ -31,6 +31,8 @@ function mostrarRede() {
     const nomes = rede.cidades.chaves();
     if (nomes.length === 0) {
         svg.innerHTML = "";
+        if (el("escalaMapa")) el("escalaMapa").hidden = true;
+        if (el("distanciaRota")) el("distanciaRota").hidden = true;
         return;
     }
 
@@ -53,11 +55,30 @@ function mostrarRede() {
         y: 372 - ((c.lat - minLat) / (maxLat - minLat || 1)) * 350,
     });
 
+    const escala = Math.min((svg.clientWidth || 660) / vb.w, (svg.clientHeight || 390) / vb.h);
+    const pxPorKm = (540 / ((maxLng - minLng || 1) * 85)) * escala;
+    const kmBarra = pxPorKm * 10 > 110 ? 5 : 10;
+    if (el("escalaMapa")) {
+        el("escalaMapa").hidden = false;
+        el("textoEscala").textContent = `${kmBarra} km`;
+        el("barraEscala").style.width = `${Math.round(pxPorKm * kmBarra)}px`;
+    }
+
+    const distEl = el("distanciaRota");
+    if (distEl) {
+        if (rota !== null && regiaoFiltro !== "") {
+            distEl.textContent = `${rota.km} km`;
+            distEl.hidden = false;
+        } else {
+            distEl.hidden = true;
+        }
+    }
+
     const pontosMapa = CONTORNO_CONDADO.map(([lat, lng]) => {
         const p = pos({ lat, lng });
         return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
     }).join(" ");
-    const linhas = [`<polygon points="${pontosMapa}" fill="#f8f8f5" stroke="#bbb" stroke-width="${1.5 * s}"/>`];
+    const linhas = [`<polygon points="${pontosMapa}" fill="#fff" stroke="#d0d7de" stroke-width="${1.5 * s}"/>`];
 
     for (const a of rede.listaArestas) {
         const p1 = pos(rede.cidades.buscar(a.u));
@@ -65,40 +86,40 @@ function mostrarRede() {
         const par = `${a.u}|${a.v}`;
         const naRota = rota !== null && rota.arestas.buscar(par) === true;
         const naAgm = rede.agm.arestas.buscar(par) === true;
-        const cor = naRota ? "#06c" : naAgm ? "#888" : "#ddd";
+        const cor = naRota ? "#0969da" : naAgm ? "#57606a" : "#d0d7de";
         const larg = (naRota ? 2.5 : naAgm ? 1.5 : 1) * s;
         linhas.push(`<line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${cor}" stroke-width="${larg}"/>`);
     }
+
+    const tamFonte = 11.5 * s;
+    const largHalo = 2.5 * s;
 
     nomes.forEach((nome, i) => {
         const p = pos(rede.cidades.buscar(nome));
         const qtd = contagem.buscar(nome) ?? 0;
         const t = maxQtd > 0 ? qtd / maxQtd : 0;
         const gb = Math.round(235 - t * 185);
-        const corFundo = qtd > 0 ? `rgb(245,${gb},${gb})` : "#eee";
-        const corBorda = nome === regiaoFiltro ? "#06c" : qtd > 0 ? "#a00" : "#555";
+        const corFundo = qtd > 0 ? `rgb(245,${gb},${gb})` : "#fff";
+        const corBorda = nome === regiaoFiltro ? "#0969da" : qtd > 0 ? "#cf222e" : "#57606a";
         const esq = p.x > 520;
         const rotulo = qtd > 0 ? `${nome} (${qtd})` : nome;
         linhas.push(`<g data-cidade="${i}" style="cursor:pointer">`);
         if (nome === CENTRAL) {
-            linhas.push(`<circle cx="${p.x}" cy="${p.y}" r="${8 * s}" fill="none" stroke="#333" stroke-width="${1.2 * s}"/>`);
+            linhas.push(`<circle cx="${p.x}" cy="${p.y}" r="${8.5 * s}" fill="none" stroke="#1f2328" stroke-width="${1.2 * s}"/>`);
         }
         linhas.push(
-            `<circle cx="${p.x}" cy="${p.y}" r="${(nome === regiaoFiltro ? 6 : 4.5) * s}" fill="${corFundo}" stroke="${corBorda}" stroke-width="${1.5 * s}"/>`,
-            `<text x="${p.x + (esq ? -9 : 9) * s}" y="${p.y + 3 * s}" text-anchor="${esq ? "end" : "start"}" font-size="${10 * s}" font-weight="${nome === regiaoFiltro || nome === CENTRAL ? "bold" : "normal"}" fill="${nome === regiaoFiltro ? "#06c" : "#222"}" paint-order="stroke" stroke="#f8f8f5" stroke-width="${2.5 * s}">${rotulo}</text>`,
+            `<circle cx="${p.x}" cy="${p.y}" r="${(nome === regiaoFiltro ? 6.5 : 5) * s}" fill="${corFundo}" stroke="${corBorda}" stroke-width="${1.5 * s}"/>`,
+            `<text x="${p.x + (esq ? -9 : 9) * s}" y="${p.y + 4 * s}" text-anchor="${esq ? "end" : "start"}" font-size="${tamFonte}" font-weight="${nome === regiaoFiltro || nome === CENTRAL ? "bold" : "500"}" fill="${nome === regiaoFiltro ? "#0969da" : "#1f2328"}" paint-order="stroke" stroke="#fff" stroke-width="${largHalo}">${rotulo}</text>`,
             `</g>`
         );
     });
-
-    if (rota !== null && regiaoFiltro !== CENTRAL) {
-        linhas.push(`<text id="rotuloRota" x="${vb.x + 12 * s}" y="${vb.y + 380 * s}" font-size="${11 * s}" fill="#06c">${rota.km} km da central</text>`);
-    }
 
     svg.innerHTML = linhas.join("");
     for (const no of svg.querySelectorAll("[data-cidade]")) {
         const nome = nomes[no.dataset.cidade];
         no.addEventListener("click", () => {
             if (arrastouMapa) return;
+            el("id").value = "";
             el("viaturas").value = "";
             regiaoFiltro = regiaoFiltro === nome ? "" : nome;
             buscar();
@@ -115,24 +136,13 @@ function aplicarViewBox() {
     mostrarRede();
 }
 
-// no arrasto basta mover a janela. redesenhar 125 elementos a cada mousemove é caro
-function moverViewBox() {
-    atualizarViewBox();
-    const rotulo = el("rotuloRota");
-    if (rotulo) {
-        const s = vb.w / 660;
-        rotulo.setAttribute("x", vb.x + 12 * s);
-        rotulo.setAttribute("y", vb.y + 380 * s);
-    }
-}
-
 svgMapa.addEventListener("wheel", (e) => {
     e.preventDefault();
     const fator = e.deltaY < 0 ? 0.85 : 1 / 0.85;
     const nw = Math.min(660, Math.max(150, vb.w * fator));
     const nh = (nw * 390) / 660;
-    const rx = e.offsetX / 660;
-    const ry = e.offsetY / 390;
+    const rx = e.offsetX / (svgMapa.clientWidth || 660);
+    const ry = e.offsetY / (svgMapa.clientHeight || 390);
     vb.x = Math.max(0, Math.min(660 - nw, vb.x + (vb.w - nw) * rx));
     vb.y = Math.max(0, Math.min(390 - nh, vb.y + (vb.h - nh) * ry));
     vb.w = nw;
@@ -152,7 +162,7 @@ window.addEventListener("mousemove", (e) => {
     if (Math.hypot(dx, dy) > 4) arrastouMapa = true;
     vb.x = Math.max(0, Math.min(660 - vb.w, arrastando.vbx - (dx * vb.w) / 660));
     vb.y = Math.max(0, Math.min(390 - vb.h, arrastando.vby - (dy * vb.h) / 390));
-    moverViewBox();
+    atualizarViewBox();
 });
 
 window.addEventListener("mouseup", () => {

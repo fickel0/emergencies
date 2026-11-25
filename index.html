@@ -4,174 +4,303 @@
         <meta charset="utf-8" />
         <title>Central de Emergências</title>
         <style>
-            body { margin: 0; font: 13.5px/1.4 system-ui, -apple-system, sans-serif; color: #1f2328; }
-            button, ::file-selector-button, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select {
-                font: inherit; padding: 3px 8px; border: 1px solid #c8d1d9; border-radius: 4px; background: #f6f8fa; color: inherit;
+            :root {
+                --cinza-fundo: #f6f8fa;
+                --cinza-borda: #d0d7de;
+                --altura-barra: 46px;
+                --altura-controle: 26px;
             }
-            input[type="file"] { font: inherit; }
-            ::file-selector-button { padding: 3px 6px; margin-right: 4px; cursor: pointer; }
-            input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select { background: #fff; }
-            button { cursor: pointer; }
-            button:hover:not(:disabled), ::file-selector-button:hover { background: #eaeef2; }
-            button:disabled { opacity: 0.5; }
-            #abrirProtocolos { background: #ddf4ff; border-color: #54aeff; color: #0969da; font-weight: 500; }
-            #abrirProtocolos:hover { background: #b6e3ff; }
-            dialog { border: 1px solid #d0d7de; border-radius: 6px; padding: 14px 18px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); color: inherit; }
+            html, body { height: 100%; margin: 0; overflow: hidden; font: 13.5px/1.4 system-ui, -apple-system, sans-serif; color: #1f2328; }
+            body { display: flex; flex-direction: column; }
+            button, .botao, input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select {
+                font: inherit; padding: 0 8px; border: 1px solid var(--cinza-borda); border-radius: 4px; background: #fff; color: inherit; box-sizing: border-box; height: var(--altura-controle);
+            }
+            button, .botao { cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+            button:hover:not(:disabled), .botao:hover { background: var(--cinza-fundo); }
+            button:disabled, input:disabled { opacity: 0.5; cursor: default; }
+            .botao-destaque { background: #0969da; color: #fff; border-color: #0969da; font-weight: 500; }
+            .botao-destaque:hover { background: #0858b8; border-color: #0858b8; }
+            input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+            input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+            dialog { border: 1px solid var(--cinza-borda); border-radius: 6px; padding: 16px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12); color: inherit; background: #fff; min-width: 320px; }
             dialog::backdrop { background: rgba(0, 0, 0, 0.25); }
-            dialog form p:first-child { margin-top: 0; }
-            dialog form p:last-child { margin-bottom: 0; }
+            dialog p { margin: 10px 0; }
+            dialog p:first-child { margin-top: 0; }
+            dialog p:last-child { margin-bottom: 0; }
             .direita { text-align: right; }
-            .painel { display: flex; border-bottom: 1px solid #d0d7de; }
-            .painel > div { padding: 14px 16px; box-sizing: border-box; }
-            .col-esq { width: 15%; border-right: 1px solid #d0d7de; }
-            .col-esq h2 { margin: 0 0 12px; }
-            .col-esq p { margin: 8px 0; }
-            .col-meio { width: 35%; border-right: 1px solid #d0d7de; display: flex; flex-direction: column; }
-            .col-meio form { margin: 0; }
-            .col-meio p { margin: 8px 0; }
-            .col-meio p:first-child { margin-top: 0; }
-            .col-meio p:last-child { margin-bottom: 0; }
-            .col-meio hr { border: 0; border-top: 1px solid #e5e9ef; margin: 10px -16px; }
-            .rodape-filtros { margin-top: auto; }
-            .col-mapa { width: 50%; padding: 0 !important; display: flex; }
-            #redeSvg { width: 100%; height: 100%; max-height: 44vh; display: block; user-select: none; }
-            .area-tabela { padding: 10px 14px; }
-            .barra-tabela { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+            #editor p { display: flex; gap: 8px; align-items: center; }
+            #editor p.direita { justify-content: flex-end; }
+            #textoRelatorio { background: var(--cinza-fundo); border: 1px solid var(--cinza-borda); border-radius: 4px; padding: 10px; font: 12px/1.4 monospace; max-height: 260px; overflow-y: auto; margin: 10px 0; }
+
+            .topo, .bloco-rodape-filtros, .barra-tabela, .barra-protocolos { height: var(--altura-barra); box-sizing: border-box; }
+            .topo { display: flex; justify-content: space-between; align-items: stretch; border-bottom: 1px solid var(--cinza-borda); background: var(--cinza-fundo); flex-shrink: 0; padding: 0 10px 0 0; }
+            .topo-dir { display: flex; align-items: center; gap: 8px; }
+            .topo-dir .botao, .topo-dir button { padding: 0 12px; font-size: 13px; }
+            .abas { display: flex; height: 100%; margin: 0; }
+            .aba { background: transparent; border: none; border-right: 1px solid var(--cinza-borda); border-radius: 0; padding: 0 16px; font-weight: 500; color: #57606a; cursor: pointer; height: 100%; font-size: 13.5px; }
+            .aba:hover:not(.ativa) { color: #1f2328; }
+            .aba.ativa { background: #fff; color: #1f2328; font-weight: 500; }
+
+            #secaoOcorrencias { flex: 1; min-height: 0; display: flex; align-items: stretch; }
+            .col-esq { width: 32%; border-right: 1px solid var(--cinza-borda); box-sizing: border-box; display: flex; flex-direction: column; }
+            .col-filtros { display: flex; flex-direction: column; flex-shrink: 0; }
+            .filtros-form { padding: 10px; }
+            .filtros-form p { margin: 10px 0; }
+            .filtros-form p:first-child { margin-top: 0; }
+            .filtros-form p:last-child { margin-bottom: 0; }
+            .filtros-form button { height: 24px; padding: 0 6px; font-size: 12px; }
+            .bloco-rodape-filtros { padding: 10px; background: var(--cinza-fundo); border-top: 1px solid var(--cinza-borda); border-bottom: 1px solid var(--cinza-borda); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+            .bloco-rodape-filtros .grupo-inputs { display: flex; align-items: center; gap: 8px; }
+            .esmaecido { opacity: 0.4; transition: opacity 0.15s; }
+            .linha-flex { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+            .col-mapa { flex: 1; min-height: 0; display: flex; position: relative; background: #fff; }
+            #redeSvg { width: 100%; height: 100%; display: block; user-select: none; }
+            .escala-mapa { position: absolute; left: 12px; bottom: 10px; pointer-events: none; font-size: 11px; color: #57606a; line-height: 1.1; }
+            .barra-escala { border: 1.5px solid #57606a; border-top: 0; height: 4px; margin-top: 2px; }
+            .distancia-mapa { position: absolute; right: 12px; bottom: 10px; pointer-events: none; font-size: 11px; font-weight: 600; color: #0969da; line-height: 1.1; }
+
+            .area-tabela { flex: 1; min-height: 0; display: flex; flex-direction: column; box-sizing: border-box; }
+            .barra-tabela { display: flex; justify-content: space-between; align-items: center; padding: 10px; background: #fff; border-bottom: 1px solid var(--cinza-borda); flex-shrink: 0; }
+            .grupo-barra { display: flex; align-items: center; gap: 8px; min-width: 0; }
+            .btn-icone, .acoes button {
+                width: 22px;
+                height: 22px;
+                min-width: 22px;
+                min-height: 22px;
+                padding: 0;
+                border: 1px solid var(--cinza-borda);
+                border-radius: 4px;
+                font-size: 11.5px;
+                line-height: 20px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                vertical-align: middle;
+                box-sizing: border-box;
+            }
+            .acoes button { margin-left: 8px; }
+            #pagina { min-width: 44px; text-align: center; display: inline-block; font-variant-numeric: tabular-nums; font-size: 13px; }
+            .tabela-cabecalho { flex-shrink: 0; scrollbar-gutter: stable; background: var(--cinza-fundo); border-bottom: 1px solid var(--cinza-borda); }
+            .tabela-corpo { flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; scrollbar-gutter: stable; }
             table { width: 100%; table-layout: fixed; border-collapse: collapse; }
-            th, td { padding: 5px 8px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-bottom: 1px solid #eee; }
-            th { background: #f6f8fa; font-weight: 600; border-bottom: 1px solid #d0d7de; }
-            tbody tr:hover { background: #f6f8fa; }
+            .linha-titulos th {
+                background: var(--cinza-fundo);
+                font-weight: 600;
+                padding: 0 8px;
+                height: 32px;
+                box-sizing: border-box;
+                text-align: left;
+                vertical-align: middle;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                font-size: 13px;
+                border: none;
+            }
+            tbody td {
+                padding: 0 8px;
+                height: 32px;
+                box-sizing: border-box;
+                border-bottom: 1px solid #eee;
+                text-align: left;
+                vertical-align: middle;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
             .centro { text-align: center; }
-            .acoes { text-align: right; }
-            .acoes button { padding: 1px 6px; margin-left: 3px; }
+            .acoes { text-align: right; overflow: visible; padding-right: 8px; }
+            .acoes button {
+                width: 24px;
+                height: 24px;
+                min-width: 24px;
+                min-height: 24px;
+                padding: 0;
+                font-size: 12px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                vertical-align: middle;
+                margin-left: 8px;
+            }
+
+            .area-protocolos { flex: 1; min-height: 0; display: flex; flex-direction: column; background: #fff; }
+            .barra-protocolos { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid var(--cinza-borda); background: #fff; }
+            .conteudo-protocolos { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 16px; }
+            #grafoSvg { max-width: 100%; max-height: 100%; display: block; user-select: none; }
+            [hidden] { display: none !important; }
         </style>
     </head>
     <body>
-        <div class="painel">
-            <div class="col-esq">
-                <h2>Central 911</h2>
-                <p>
-                    CSV:<br />
-                    <input type="file" id="arquivo" accept=".csv" autocomplete="off" style="width: 100%; margin: 4px 0" /><br />
-                    <small id="infoCarga"></small>
-                </p>
-                <p><button type="button" id="salvarCsv">Salvar CSV</button></p>
-                <p><button type="button" id="nova">Nova ocorrência</button></p>
-                <p><button type="button" id="abrirProtocolos">Protocolos</button></p>
+        <header class="topo">
+            <nav class="abas">
+                <button type="button" id="abaOcorrencias" class="aba ativa">Ocorrências</button>
+                <button type="button" id="abaProtocolos" class="aba">Protocolos</button>
+            </nav>
+            <div class="topo-dir">
+                <label for="arquivo" class="botao botao-destaque">Carregar</label>
+                <input type="file" id="arquivo" accept=".csv" autocomplete="off" hidden />
+                <button type="button" id="salvarCsv">Salvar</button>
             </div>
+        </header>
 
-            <div class="col-meio">
-                <form id="consulta" autocomplete="off">
-                    <p>
-                        ID: <input id="id" size="9" required />
-                        <button type="submit">Consultar</button>
-                    </p>
-                </form>
-                <hr />
-                <p style="display: flex; gap: 16px; align-items: center">
-                    <label>Viaturas: <input type="number" id="viaturas" min="1" max="500" style="width: 5em" autocomplete="off" /></label>
-                    <label><input type="checkbox" id="incluirAtendidas" /> incluir atendidas</label>
-                </p>
-                <hr />
-                <form id="busca" autocomplete="off">
-                    <p>
-                        Endereço: <input id="endereco" list="sugestoes" size="30" />
-                        <datalist id="sugestoes"></datalist>
-                    </p>
-                    <p>
-                        Categoria:
-                        <select id="categoria">
-                            <option value="">todas</option>
-                            <option>EMS</option>
-                            <option>Fire</option>
-                            <option>Traffic</option>
-                        </select>
-                        Tipo:
-                        <select id="tipo">
-                            <option value="">todos</option>
-                        </select>
-                    </p>
-                    <p>
-                        De <input type="datetime-local" id="de" step="1" /> até
-                        <input type="datetime-local" id="ate" step="1" />
-                    </p>
-                    <p>
-                        Período:
-                        <button type="button" data-minutos="30">30 min</button>
-                        <button type="button" data-minutos="1440">24 h</button>
-                        <button type="button" data-minutos="10080">7 dias</button>
-                        <button type="button" id="qualquerPeriodo">qualquer</button>
-                    </p>
-                    <p class="direita">
-                        <button type="button" id="atenderLote">✓ Atender (0)</button>
-                        <button type="button" id="limpar">Limpar</button>
-                    </p>
-                </form>
-                <div class="rodape-filtros">
-                    <hr />
-                    <p>
-                        Ordem:
-                        <label><input type="radio" name="ordem" value="prioridade" form="busca" checked /> prioridade</label>
-                        <label><input type="radio" name="ordem" value="recentes" form="busca" /> recentes</label>
-                        <label><input type="radio" name="ordem" value="antigos" form="busca" /> antigos</label>
-                    </p>
+        <main id="secaoOcorrencias">
+            <div class="col-esq">
+                <div class="col-filtros">
+                    <form id="busca" class="filtros-form" autocomplete="off">
+                        <div id="grupoFiltros">
+                            <p>
+                                <input id="endereco" list="sugestoes" placeholder="Endereço..." style="width: 100%" />
+                                <datalist id="sugestoes"></datalist>
+                            </p>
+                            <p class="linha-flex">
+                                <select id="categoria">
+                                    <option value="">Categoria</option>
+                                    <option>EMS</option>
+                                    <option>Fire</option>
+                                    <option>Traffic</option>
+                                </select>
+                                <select id="tipo" style="flex: 1; min-width: 0">
+                                    <option value="">Tipo</option>
+                                </select>
+                            </p>
+                            <p class="linha-flex">
+                                <input type="datetime-local" id="de" style="flex: 1; min-width: 0" /> até
+                                <input type="datetime-local" id="ate" style="flex: 1; min-width: 0" />
+                            </p>
+                            <p class="linha-flex">
+                                <span>
+                                    <button type="button" data-minutos="60">1h</button>
+                                    <button type="button" data-minutos="720">12h</button>
+                                    <button type="button" data-minutos="1440">24h</button>
+                                    <button type="button" data-minutos="10080">7 dias</button>
+                                    <button type="button" id="qualquerPeriodo">Qualquer</button>
+                                </span>
+                            </p>
+                        </div>
+                    </form>
+
+                    <div class="bloco-rodape-filtros">
+                        <div class="grupo-inputs">
+                            <input id="id" placeholder="ID" style="width: 55px" autocomplete="off" />
+                            <input id="viaturas" placeholder="Viaturas" style="width: 72px" autocomplete="off" inputmode="numeric" />
+                            <label style="white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; cursor: pointer">
+                                <input type="checkbox" id="incluirAtendidas" style="margin: 0; width: 14px; height: 14px" /> Incluir atendidas
+                            </label>
+                        </div>
+                        <button type="button" id="limpar" style="padding: 0 10px">Limpar</button>
+                    </div>
+                </div>
+
+                <div class="col-mapa">
+                    <svg id="redeSvg" width="660" height="390" viewBox="0 0 660 390"></svg>
+                    <div id="escalaMapa" class="escala-mapa" hidden>
+                        <span id="textoEscala">10 km</span>
+                        <div id="barraEscala" class="barra-escala"></div>
+                    </div>
+                    <div id="distanciaRota" class="distancia-mapa" hidden></div>
                 </div>
             </div>
 
-            <div class="col-mapa">
-                <svg id="redeSvg" width="660" height="390" viewBox="0 0 660 390"></svg>
-            </div>
-        </div>
+            <div class="area-tabela">
+                <div class="barra-tabela">
+                    <div class="grupo-barra">
+                        <button type="button" id="nova" class="botao-destaque btn-icone" title="Nova ocorrência">+</button>
+                        <button type="button" id="atenderLote" class="btn-icone" title="Atender">✓</button>
+                        <strong id="contagem">Nenhum arquivo carregado</strong>
+                    </div>
+                    <div class="grupo-barra">
+                        <select id="ordem" form="busca">
+                            <option value="prioridade">Prioridade</option>
+                            <option value="recentes">Recentes</option>
+                            <option value="antigos">Antigos</option>
+                        </select>
+                        <button type="button" id="anterior" class="btn-icone">&lt;</button>
+                        <span id="pagina">1/1</span>
+                        <button type="button" id="proxima" class="btn-icone">&gt;</button>
+                    </div>
+                </div>
 
-        <div class="area-tabela">
-            <div class="barra-tabela">
-                <strong id="contagem"></strong>
-                <div><button id="anterior">Anterior</button> <span id="pagina"></span> <button id="proxima">Próxima</button></div>
-            </div>
+                <div class="tabela-cabecalho">
+                    <table>
+                        <thead>
+                            <tr class="linha-titulos">
+                                <th style="width: 7.5%">ID</th>
+                                <th style="width: 19%">Data/hora</th>
+                                <th style="width: 6%">Cat.</th>
+                                <th style="width: 17%">Tipo</th>
+                                <th class="centro" style="width: 5%">Nível</th>
+                                <th class="centro" style="width: 4.5%">Viat.</th>
+                                <th style="width: 12.5%">Região</th>
+                                <th style="width: 18%">Endereço</th>
+                                <th class="centro" style="width: 3.5%">Sit.</th>
+                                <th class="acoes" style="width: 7%"></th>
+                            </tr>
+                        </thead>
+                    </table>
+                </div>
 
-            <table>
-                <thead>
-                    <tr>
-                        <th style="width: 7%">ID</th>
-                        <th style="width: 14%">Data/hora</th>
-                        <th style="width: 5%">Cat.</th>
-                        <th style="width: 21%">Tipo</th>
-                        <th class="centro" style="width: 4%">Nível</th>
-                        <th class="centro" style="width: 4%">Viat.</th>
-                        <th style="width: 13%">Região</th>
-                        <th style="width: 23%">Endereço</th>
-                        <th class="centro" style="width: 3%">Sit.</th>
-                        <th class="acoes" style="width: 6%"></th>
-                    </tr>
-                </thead>
-                <tbody id="linhas"></tbody>
-            </table>
-        </div>
+                <div class="tabela-corpo">
+                    <table>
+                        <colgroup>
+                            <col style="width: 7.5%" />
+                            <col style="width: 19%" />
+                            <col style="width: 6%" />
+                            <col style="width: 17%" />
+                            <col style="width: 5%" />
+                            <col style="width: 4.5%" />
+                            <col style="width: 12.5%" />
+                            <col style="width: 18%" />
+                            <col style="width: 3.5%" />
+                            <col style="width: 7%" />
+                        </colgroup>
+                        <tbody id="linhas"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <section id="secaoProtocolos" class="area-protocolos" hidden>
+            <div class="barra-protocolos">
+                <select id="categoriaProtocolo">
+                    <option>EMS</option>
+                    <option>Fire</option>
+                    <option>Traffic</option>
+                </select>
+            </div>
+            <div class="conteudo-protocolos">
+                <svg id="grafoSvg" width="900" height="420" viewBox="0 0 900 420"></svg>
+            </div>
+        </section>
 
         <dialog id="janela">
             <form method="dialog" id="editor" autocomplete="off">
                 <p><strong id="tituloJanela"></strong></p>
                 <p>
-                    Categoria:
                     <select name="categoria">
                         <option>EMS</option>
                         <option>Fire</option>
                         <option>Traffic</option>
                     </select>
-                    Tipo: <input name="tipo" list="tiposConhecidos" size="30" required />
+                    <input name="tipo" placeholder="Tipo" list="tiposConhecidos" style="flex: 1; min-width: 0" required />
                     <datalist id="tiposConhecidos"></datalist>
                 </p>
                 <p>
-                    Região: <input name="regiao" list="regioesConhecidas" required />
+                    <input name="regiao" placeholder="Região" list="regioesConhecidas" style="flex: 1; min-width: 0" required />
                     <datalist id="regioesConhecidas"></datalist>
-                    Zip: <input name="zip" size="6" required />
+                    <input name="zip" placeholder="Zip" style="width: 70px" required />
                 </p>
-                <p>Endereço: <input name="endereco" size="40" required /></p>
                 <p>
-                    <label><input type="checkbox" name="atendido" /> atendida</label>
+                    <input name="endereco" placeholder="Endereço" style="width: 100%" required />
+                </p>
+                <p>
+                    <label style="display: inline-flex; align-items: center; gap: 5px; cursor: pointer">
+                        <input type="checkbox" name="atendido" style="margin: 0" /> atendida
+                    </label>
                 </p>
                 <p class="direita">
-                    <button value="salvar">Salvar</button>
+                    <button value="salvar" class="botao-destaque">Salvar</button>
                     <button value="remover" id="botaoRemover" formnovalidate>Remover</button>
                     <button value="cancelar" formnovalidate>Cancelar</button>
                 </p>
@@ -183,24 +312,6 @@
                 <p><strong>Relatório da carga</strong></p>
                 <pre id="textoRelatorio"></pre>
                 <p class="direita"><button>Fechar</button></p>
-            </form>
-        </dialog>
-
-        <dialog id="janelaProtocolos">
-            <form method="dialog">
-                <p>
-                    <strong>Protocolo de atendimento:</strong>
-                    <select id="categoriaProtocolo">
-                        <option>EMS</option>
-                        <option>Fire</option>
-                        <option>Traffic</option>
-                    </select>
-                </p>
-                <svg id="grafoSvg" width="900" height="400"></svg>
-                <p class="direita">
-                    <button value="salvar">Salvar</button>
-                    <button value="cancelar">Cancelar</button>
-                </p>
             </form>
         </dialog>
 
