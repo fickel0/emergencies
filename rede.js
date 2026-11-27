@@ -106,7 +106,11 @@ class Rede {
 
     arvoreGeradoraMinima() {
         const pai = new TabelaHash();
-        for (const v of this.cidades.chaves()) pai.inserir(v, v);
+        const posto = new TabelaHash();
+        for (const v of this.cidades.chaves()) {
+            pai.inserir(v, v);
+            posto.inserir(v, 0);
+        }
 
         const find = (v) => {
             if (pai.buscar(v) === v) return v;
@@ -123,7 +127,15 @@ class Rede {
             const ru = find(a.u);
             const rv = find(a.v);
             if (ru !== rv) {
-                pai.inserir(ru, rv);
+                // união por posto: a árvore mais baixa vira filha da mais alta
+                const pu = posto.buscar(ru);
+                const pv = posto.buscar(rv);
+                if (pu < pv) pai.inserir(ru, rv);
+                else if (pu > pv) pai.inserir(rv, ru);
+                else {
+                    pai.inserir(rv, ru);
+                    posto.inserir(ru, pu + 1);
+                }
                 arestas.inserir(`${a.u}|${a.v}`, true);
                 total += a.km;
             }
