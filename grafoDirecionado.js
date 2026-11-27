@@ -1,4 +1,4 @@
-class Grafo {
+class GrafoDirecionado {
     constructor(vertices) {
         this.adjacencia = new TabelaHash();
         for (const v of vertices) this.adjacencia.inserir(v, new TabelaHash());

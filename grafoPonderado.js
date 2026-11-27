@@ -2,7 +2,7 @@ function chaveAresta(a, b) {
     return a < b ? `${a}|${b}` : `${b}|${a}`;
 }
 
-class Rede {
+class GrafoPonderado {
     constructor() {
         this.carregar("");
     }
@@ -144,4 +144,4 @@ class Rede {
     }
 }
 
-const rede = new Rede();
+const rede = new GrafoPonderado();

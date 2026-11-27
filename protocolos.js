@@ -11,7 +11,7 @@ const ETAPAS = [
 const protocolos = new TabelaHash();
 
 function definirProtocolo(categoria, dependencias) {
-    const g = new Grafo(ETAPAS);
+    const g = new GrafoDirecionado(ETAPAS);
     for (const [i, j] of dependencias) g.adicionarAresta(ETAPAS[i], ETAPAS[j]);
     protocolos.inserir(categoria, g);
 }
